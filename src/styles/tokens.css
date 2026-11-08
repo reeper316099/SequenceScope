@@ -1,0 +1,13 @@
+/* Design tokens. Dark mode overrides via [data-theme="dark"]; the app picks the OS preference by default. */
+:root {
+  --bg: #f6f5fb; --surface: #ffffff; --surface-2: #efedf8; --text: #1d1730; --text-muted: #5a5373;
+  --border: #d9d4ec; --primary: #5b34a6; --primary-deep: #3b1f6b; --secondary: #06b6d4; --accent: #f59e0b;
+  --ok: #0f7b4f; --bad: #b3261e; --shadow: 0 2px 10px rgb(59 31 107 / 12%); --radius: 14px;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+:root[data-theme='dark'] {
+  --bg: #130f1f; --surface: #1c1730; --surface-2: #261f40; --text: #efeafc; --text-muted: #b2a9d1;
+  --border: #3a3160; --primary: #a98bf0; --primary-deep: #3b1f6b; --secondary: #22d3ee; --accent: #fbbf24;
+  --ok: #4ade80; --bad: #ff8a80; --shadow: 0 2px 12px rgb(0 0 0 / 45%);
+}

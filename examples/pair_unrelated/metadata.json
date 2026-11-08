@@ -1,0 +1,35 @@
+{
+  "id": "pair_unrelated",
+  "title": "Human alpha-globin vs human insulin precursor (unrelated)",
+  "molecule": "protein",
+  "purpose": "Unrelated-pair demo.",
+  "retrieved": "2026-11-08",
+  "fasta_file": "sequences.fasta",
+  "fasta_sha256": "eed7e07314e59fbae4d3253185d5d39f10411899591068e1f0bda4fc153d45ad",
+  "license": {
+    "name": "CC BY 4.0",
+    "quote": "We have chosen to apply the Creative Commons Attribution 4.0 International (CC BY 4.0) License (https://creativecommons.org/licenses/by/4.0/) to all copyrightable parts of our databases.",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/LICENSE",
+    "license_checked": "2026-11-08"
+  },
+  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).",
+  "notes": "No real homology expected; shows what a noise alignment looks like.",
+  "records": [
+    {
+      "accession": "P69905",
+      "header": "sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P01308",
+      "header": "sp|P01308|INS_HUMAN Insulin OS=Homo sapiens OX=9606 GN=INS PE=1 SV=1",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 110,
+      "sequence_sha256": "99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263"
+    }
+  ]
+}

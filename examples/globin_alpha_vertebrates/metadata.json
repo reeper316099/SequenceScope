@@ -1,0 +1,132 @@
+{
+  "id": "globin_alpha_vertebrates",
+  "title": "Hemoglobin subunit alpha across 13 vertebrates",
+  "molecule": "protein",
+  "purpose": "Protein family for distances, trees, and MSA.",
+  "retrieved": "2026-11-08",
+  "fasta_file": "sequences.fasta",
+  "fasta_sha256": "4ee1293ddc33d1eeb01eb777fe0e47a9fd4c9b534ad243b69f6786ee671831b6",
+  "license": {
+    "name": "CC BY 4.0",
+    "quote": "We have chosen to apply the Creative Commons Attribution 4.0 International (CC BY 4.0) License (https://creativecommons.org/licenses/by/4.0/) to all copyrightable parts of our databases.",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/LICENSE",
+    "license_checked": "2026-11-08"
+  },
+  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).",
+  "notes": "Expected: primates cluster together, rodents together, fish/frog/bird outside mammals.",
+  "records": [
+    {
+      "accession": "P69905",
+      "header": "sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P69907",
+      "header": "sp|P69907|HBA_PANTR Hemoglobin subunit alpha OS=Pan troglodytes OX=9598 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P01923",
+      "header": "sp|P01923|HBA_GORGO Hemoglobin subunit alpha OS=Gorilla gorilla gorilla OX=9595 GN=HBA PE=1 SV=1",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 141,
+      "sequence_sha256": "3f2db413a0d4405653ea8c4e6869a4110dd8c61ba3097c419bfef3f3a6f3b228"
+    },
+    {
+      "accession": "P63108",
+      "header": "sp|P63108|HBA_MACMU Hemoglobin subunit alpha OS=Macaca mulatta OX=9544 GN=HBA PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "7cba3d90ff603d688c3c878b995e4bd5338a9570b055459980a7d0cf561bff6c"
+    },
+    {
+      "accession": "P01942",
+      "header": "sp|P01942|HBA_MOUSE Hemoglobin subunit alpha OS=Mus musculus OX=10090 GN=Hba PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "33faa61d7a383e6cb29bcaeeeb46cc6bb021cb8a5948e67941fdbb2738ca4aea"
+    },
+    {
+      "accession": "P01946",
+      "header": "sp|P01946|HBA_RAT Hemoglobin subunit alpha-1/2 OS=Rattus norvegicus OX=10116 GN=Hba1 PE=1 SV=3",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "eb4814c6f116fe03139a0f2a59c0186362633f9643393a7ad79a3b81c8388512"
+    },
+    {
+      "accession": "P01966",
+      "header": "sp|P01966|HBA_BOVIN Hemoglobin subunit alpha OS=Bos taurus OX=9913 GN=HBA PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "bfa9bd3fed5786573cd883b5164059b5c87c850b8228a00c7aec9cfb16395bd2"
+    },
+    {
+      "accession": "P01958",
+      "header": "sp|P01958|HBA_HORSE Hemoglobin subunit alpha OS=Equus caballus OX=9796 GN=HBA PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "34f72a94ef098425806170a58469300c30d6ac8d2afca5a4533275a7918b7c56"
+    },
+    {
+      "accession": "P60529",
+      "header": "sp|P60529|HBA_CANLF Hemoglobin subunit alpha OS=Canis lupus familiaris OX=9615 GN=HBA PE=1 SV=1",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 141,
+      "sequence_sha256": "3f79c791c96fc9983ac33e32e4da1da1c5b190d940a45e812e070c2958e581ef"
+    },
+    {
+      "accession": "P01965",
+      "header": "sp|P01965|HBA_PIG Hemoglobin subunit alpha OS=Sus scrofa OX=9823 GN=HBA PE=1 SV=1",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 141,
+      "sequence_sha256": "2e2cf42bfb52951d0972bdbe6d110479f5a9acb7eaaefaf372dcc623294f738e"
+    },
+    {
+      "accession": "P01994",
+      "header": "sp|P01994|HBA_CHICK Hemoglobin subunit alpha-A OS=Gallus gallus OX=9031 GN=HBAA PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "b59e21e7858bc25aaaf3c990061287d2431b2ea9cc783cc59969f87801b4c563"
+    },
+    {
+      "accession": "P07428",
+      "header": "sp|P07428|HBA_XENTR Hemoglobin subunit alpha OS=Xenopus tropicalis OX=8364 GN=hba-A PE=2 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "f7c57bdc9b0aec739dd27b5e074f6f572c416564c032f823a4bd817906a595e3"
+    },
+    {
+      "accession": "Q90487",
+      "header": "sp|Q90487|HBA_DANRE Hemoglobin subunit alpha OS=Danio rerio OX=7955 GN=hbaa1 PE=2 SV=3",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 143,
+      "sequence_sha256": "1ff56efc004c670c5846147adb72d0a3c525a6f078bb4965faff5769fc3f96a8"
+    }
+  ],
+  "aligned": {
+    "file": "aligned.fasta",
+    "tool": "MAFFT",
+    "version": "v7.526 (2024/Apr/26)",
+    "command": "mafft --auto --quiet sequences.fasta",
+    "tool_license": "BSD-3-Clause",
+    "sha256": "188c716057ae632355648d4d5020bd66d8d4185c163842ce41adfdbb132ff8c2",
+    "note": "Derived data: alignment produced by MAFFT from the records above; not a database record."
+  }
+}

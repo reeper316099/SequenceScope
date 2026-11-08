@@ -1,0 +1,149 @@
+{
+  "id": "mito_cytb_mammals",
+  "title": "Mitochondrial CYTB coding sequence, 7 primates + mouse, cow, dog",
+  "molecule": "dna",
+  "purpose": "DNA set for distance models/saturation.",
+  "retrieved": "2026-11-08",
+  "fasta_file": "sequences.fasta",
+  "fasta_sha256": "0b32a53b20ab3807973702562559d6d616600409906028fd92af7d9bae3dae18",
+  "license": {
+    "name": "NCBI data policy (no NCBI restrictions; submitter rights possible)",
+    "quote": "NCBI itself places no restrictions on the use or distribution of the data contained therein.",
+    "caveat": "Some submitters of the original data may claim patent, copyright, or other intellectual property rights in all or a portion of the data (same policy page).",
+    "source_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+    "license_checked": "2026-11-08"
+  },
+  "citation": "Sayers EW et al. GenBank / NCBI Nucleotide; cite each RefSeq accession (see records).",
+  "notes": "Rapidly evolving third codon positions; mouse/cow/dog show higher divergence.",
+  "records": [
+    {
+      "accession": "NC_012920.1",
+      "organism": "Homo sapiens",
+      "record_organism": "Homo sapiens",
+      "header": "NC_012920.1:14747-15887(+) CYTB Homo sapiens",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14747..15887 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "83409f1edcc1361809c90528d20da0756ace27429379e2d325f6571f5dc15fa5"
+    },
+    {
+      "accession": "NC_001643.1",
+      "organism": "Pan troglodytes",
+      "record_organism": "Pan troglodytes",
+      "header": "NC_001643.1:14165-15305(+) CYTB Pan troglodytes",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14165..15305 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "3aedf6cb99b73165fba10bca04f5209ffaac34069bf2a57f27d4733f29ae20f2"
+    },
+    {
+      "accession": "NC_011120.1",
+      "organism": "Gorilla gorilla gorilla",
+      "record_organism": "Gorilla gorilla gorilla",
+      "header": "NC_011120.1:14171-15311(+) CYTB Gorilla gorilla gorilla",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14171..15311 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "9bb04482c5feb6245f3221851937875ee9fd532b57beeaa6c47698db877c35e9"
+    },
+    {
+      "accession": "NC_002083.1",
+      "organism": "Pongo abelii",
+      "record_organism": "Pongo abelii",
+      "header": "NC_002083.1:14201-15341(+) CYTB Pongo abelii",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "08-OCT-2026",
+      "cds_location": "14201..15341 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "7bb94633adcfceff58d9dcff646fc7f08f3b0ebe77fa09d6752ed0dee4e5d084"
+    },
+    {
+      "accession": "NC_002082.1",
+      "organism": "Hylobates lar",
+      "record_organism": "Hylobates lar",
+      "header": "NC_002082.1:14167-15307(+) CYTB Hylobates lar",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14167..15307 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "b3104a5e3714621cfb77609f9d5dc54a2531eef01d52a0141cafffda518e6357"
+    },
+    {
+      "accession": "NC_005943.1",
+      "organism": "Macaca mulatta",
+      "record_organism": "Macaca mulatta",
+      "header": "NC_005943.1:14741-15881(+) CYTB Macaca mulatta",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14741..15881 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "dcce681acd71efae11a9436dd0115d5b47d6676342d8d67091cbfdb72308a432"
+    },
+    {
+      "accession": "NC_020006.2",
+      "organism": "Papio anubis",
+      "record_organism": "Papio anubis",
+      "header": "NC_020006.2:14168-15308(+) CYTB Papio anubis",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14168..15308 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1141,
+      "sequence_sha256": "6bd157307e307fed7759ac80089ddfb243aa018951b43a0accb30204b316ca7f"
+    },
+    {
+      "accession": "NC_005089.1",
+      "organism": "Mus musculus",
+      "record_organism": "Mus musculus",
+      "header": "NC_005089.1:14145-15288(+) CYTB Mus musculus",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14145..15288 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1144,
+      "sequence_sha256": "3a30044d892bdf1e8776048c8ee16ced8c229890e7c35086ac4d2d6e2800ffa9"
+    },
+    {
+      "accession": "NC_006853.1",
+      "organism": "Bos taurus",
+      "record_organism": "Bos taurus",
+      "header": "NC_006853.1:14514-15653(+) CYTB Bos taurus",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14514..15653 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1140,
+      "sequence_sha256": "bd71c45def81242d6dc871ac03c5ad3122d841e74a56eeea22e4fd59f487ec5b"
+    },
+    {
+      "accession": "NC_002008.4",
+      "organism": "Canis lupus familiaris",
+      "record_organism": "Canis lupus familiaris",
+      "header": "NC_002008.4:14183-15322(+) CYTB Canis lupus familiaris",
+      "database": "NCBI Nucleotide (RefSeq)",
+      "genbank_date": "03-APR-2023",
+      "cds_location": "14183..15322 strand 1",
+      "translation_note": "CDS extracted from the record's own gene=CYTB annotation (not re-typed).",
+      "length": 1140,
+      "sequence_sha256": "52c9abdc76d72875ce6e83c1674809dbd4df799f1890efbc4be5f79991cf9ab3"
+    }
+  ],
+  "aligned": {
+    "file": "aligned.fasta",
+    "tool": "MAFFT",
+    "version": "v7.526 (2024/Apr/26)",
+    "command": "mafft --auto --quiet sequences.fasta",
+    "tool_license": "BSD-3-Clause",
+    "sha256": "65f98100bde569d89a2539e78aa8a6a291ab03573af7add883ce20fd94bcb17f",
+    "note": "Derived data: alignment produced by MAFFT from the records above; not a database record."
+  }
+}
