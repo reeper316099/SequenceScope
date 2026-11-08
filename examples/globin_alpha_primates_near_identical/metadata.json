@@ -1,0 +1,51 @@
+{
+  "id": "globin_alpha_primates_near_identical",
+  "title": "Alpha-globin of human, chimp, gorilla, rhesus (near-identical)",
+  "molecule": "protein",
+  "purpose": "Near-identical demo.",
+  "retrieved": "2026-11-08",
+  "fasta_file": "sequences.fasta",
+  "fasta_sha256": "d00cb3efedab99efbe9d2334d3b026abf0aa994c71a1118fd18b1b64a8278cd5",
+  "license": {
+    "name": "CC BY 4.0",
+    "quote": "We have chosen to apply the Creative Commons Attribution 4.0 International (CC BY 4.0) License (https://creativecommons.org/licenses/by/4.0/) to all copyrightable parts of our databases.",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/LICENSE",
+    "license_checked": "2026-11-08"
+  },
+  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).",
+  "notes": "Very similar sequences; shows near-zero distances and trivially clean alignments.",
+  "records": [
+    {
+      "accession": "P69905",
+      "header": "sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P69907",
+      "header": "sp|P69907|HBA_PANTR Hemoglobin subunit alpha OS=Pan troglodytes OX=9598 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P01923",
+      "header": "sp|P01923|HBA_GORGO Hemoglobin subunit alpha OS=Gorilla gorilla gorilla OX=9595 GN=HBA PE=1 SV=1",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 141,
+      "sequence_sha256": "3f2db413a0d4405653ea8c4e6869a4110dd8c61ba3097c419bfef3f3a6f3b228"
+    },
+    {
+      "accession": "P63108",
+      "header": "sp|P63108|HBA_MACMU Hemoglobin subunit alpha OS=Macaca mulatta OX=9544 GN=HBA PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "7cba3d90ff603d688c3c878b995e4bd5338a9570b055459980a7d0cf561bff6c"
+    }
+  ]
+}

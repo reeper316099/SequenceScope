@@ -1,0 +1,8 @@
+node_modules/
+tools/.pylibs/
+out/
+dist/
+release/
+coverage/
+*.log
+.DS_Store

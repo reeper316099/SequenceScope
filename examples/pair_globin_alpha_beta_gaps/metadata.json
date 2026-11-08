@@ -1,0 +1,35 @@
+{
+  "id": "pair_globin_alpha_beta_gaps",
+  "title": "Human alpha- vs beta-globin (related, gapped)",
+  "molecule": "protein",
+  "purpose": "Gap demo pair.",
+  "retrieved": "2026-11-08",
+  "fasta_file": "sequences.fasta",
+  "fasta_sha256": "f203f8f849f8bda32e117d13e38f1ad1d640aa1258a93ab6ddeb6e1b95ad9f9e",
+  "license": {
+    "name": "CC BY 4.0",
+    "quote": "We have chosen to apply the Creative Commons Attribution 4.0 International (CC BY 4.0) License (https://creativecommons.org/licenses/by/4.0/) to all copyrightable parts of our databases.",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/LICENSE",
+    "license_checked": "2026-11-08"
+  },
+  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).",
+  "notes": "Distant paralogs with different lengths; alignment needs gaps.",
+  "records": [
+    {
+      "accession": "P69905",
+      "header": "sp|P69905|HBA_HUMAN Hemoglobin subunit alpha OS=Homo sapiens OX=9606 GN=HBA1 PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 142,
+      "sequence_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242"
+    },
+    {
+      "accession": "P68871",
+      "header": "sp|P68871|HBB_HUMAN Hemoglobin subunit beta OS=Homo sapiens OX=9606 GN=HBB PE=1 SV=2",
+      "release": "2026_04",
+      "database": "UniProtKB",
+      "length": 147,
+      "sequence_sha256": "9ebf320eb707d71644444fe5006ed58af56a0bf0ec9568eb6a3a65e0e8191465"
+    }
+  ]
+}
