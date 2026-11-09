@@ -13,7 +13,7 @@
     "source_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
     "license_checked": "2026-11-08"
   },
-  "citation": "Sayers EW et al. GenBank / NCBI Nucleotide; cite each RefSeq accession (see records).",
+  "citation": "Sayers EW, et al. GenBank 2025 update. Nucleic Acids Research 53(D1):D56-D61 (2025). doi:10.1093/nar/gkae1114 (records are NCBI RefSeq mitochondrial genomes; cite the accession of each record).",
   "notes": "Rapidly evolving third codon positions; mouse/cow/dog show higher divergence.",
   "records": [
     {

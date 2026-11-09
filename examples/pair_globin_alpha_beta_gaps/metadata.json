@@ -12,7 +12,7 @@
     "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/LICENSE",
     "license_checked": "2026-11-08"
   },
-  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).",
+  "citation": "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. Nucleic Acids Research 53(D1):D609-D617 (2025). doi:10.1093/nar/gkae1010",
   "notes": "Distant paralogs with different lengths; alignment needs gaps.",
   "records": [
     {

@@ -1,7 +1,23 @@
 # ALGORITHMS.md — recurrences, conventions, and how each was checked
 
-Status: **Milestone C core added (section 18).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
-decisions that get their tests in later phases. Nothing here is "from memory without a check".
+Written to be read as a short paper: sections 1-14 cover pairwise alignment, 6-10 and 15-17 distances and trees, 11 and 18 multiple alignment. Where a section says "as built" the numbers come from the repository's own test runs (see also the README's Validation section).
+
+**Conventions at a glance**
+
+| Topic | Convention |
+|---|---|
+| Gap cost | linear: k·g; affine: open + (k−1)·extend; open = extend ⇒ linear |
+| End gaps | charged in global mode; none in local |
+| Traceback ties | diagonal, up, left (affine: states M, X, Y) |
+| Local alignment | reported without a zero-scoring prefix |
+| Ambiguity codes | DNA: score 0, never identity; protein B/Z/X/* from the matrix, J/U/O as X |
+| Distance gap policy | pairwise deletion (default) or gaps as differences; gap-gap columns never count |
+| Saturation | JC p ≥ 3/4, Poisson p ≥ 1 ⇒ "saturated"; no usable distance ⇒ "undefined" |
+| UPGMA / NJ ties | first minimal pair in scan order |
+| NJ negative branches | kept as computed, flagged |
+| Randomness | sfc32, seeded; replicate r uses stream (seed, r) |
+
+Status: **complete for v0.1.0 (sections 1-18).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ were decisions whose tests were written in later phases (all of them now have tests; the measured results are in sections 14-18). Nothing here is "from memory without a check".
 
 ## 0. Notation
 Sequences `a = a₁…a_m`, `b = b₁…b_n`. `s(x,y)` = substitution score. `H[i][j]` = best score of an alignment of
@@ -73,7 +89,7 @@ With `n` taxa and `r_i = Σ_k d(i,k)`:
 ## 10. Bootstrap (aligned input only)
 Resample alignment **columns** with replacement (same number), recompute distances with the same model, rebuild the tree, count how often each reference-tree split appears. Support = `count / replicates · 100`. It measures **stability**, not probability of truth. It needs columns, which pairwise distances alone don't have. Reproducibility: replicate `r` uses its own PRNG stream derived from `(seed, r)`, so results don't depend on worker count. A replicate in which some pair has no comparable sites is recorded and counted, not hidden. ◻
 
-## 11. Progressive MSA (simplified Feng–Doolittle / ClustalW style)
+## 11. Progressive MSA (simplified Feng–Doolittle / ClustalW style) — design; see section 18 for the final, measured version
 Pairwise distances → guide tree (UPGMA or NJ) → align in tree order with profile–profile DP. Column score = mean of `s(x,y)` over residue–residue pairs between the two columns (gap-containing pairs contribute 0); gap penalties applied per profile column, unscaled. "Once a gap, always a gap." Heuristic: no optimality guarantee; the real fraction of tiny cases where it reaches the brute-force optimum will be reported. ◻
 
 ## 12. Shuffle significance

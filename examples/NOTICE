@@ -1,0 +1,16 @@
+NOTICE: attributions for the example data bundled with SequenceScope
+
+UniProt-derived sequences (examples: globin_alpha_vertebrates, globin_alpha_primates_near_identical, pair_globin_alpha_beta_gaps, pair_unrelated):
+  Source: UniProtKB/Swiss-Prot (https://www.uniprot.org), release 2026_04, retrieved 2026-11-08.
+  © The UniProt Consortium. Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+  Changes: records were re-wrapped to 60 columns, and subsets were selected. Sequences are unchanged.
+  UniProt statement: "All databases and documents in the UniProt FTP directory may be copied and redistributed freely, without advance permission, provided that this copyright statement is reproduced with each copy."
+  Citation: The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. Nucleic Acids Research 53(D1):D609-D617 (2025). doi:10.1093/nar/gkae1010
+
+NCBI-derived sequences (example: mito_cytb_mammals):
+  Source: NCBI Nucleotide, RefSeq mitochondrial genomes; the CYTB coding sequence of each record was extracted using the record's own gene annotation. Retrieved 2026-11-08.
+  NCBI policy (https://www.ncbi.nlm.nih.gov/home/about/policies/): "NCBI itself places no restrictions on the use or distribution of the data contained therein." Some submitters may claim rights in portions of the data.
+
+Derived alignments (aligned.fasta in globin_alpha_vertebrates and mito_cytb_mammals) were produced with MAFFT 7.526 (BSD-3-Clause) from the records above.
+
+Each example folder's metadata.json lists accessions, retrieval date, license sentence, citation and a SHA-256 checksum.

@@ -6,3 +6,5 @@ tools/.pylibs/
 examples/
 tests/fixtures/
 coverage/
+*.md
+.github/

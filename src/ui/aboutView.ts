@@ -64,10 +64,12 @@ export function createAboutView(): AppView {
 
     const val = card('Validation summary (this build)', 'What was tested and how. Current totals are in the repository README.');
     val.body.append(ul([
-      'Brute force: for tiny random and exhaustive sequence pairs the dynamic-programming score equals the best score over every possible alignment, for global and local modes with linear and affine gaps (8 gap settings, DNA and protein).',
-      'Properties (fast-check, 200 runs each): re-scoring reproduces the reported score; removing gaps returns the input; swapping sequences keeps the score; local ≥ global and ≥ 0; self-alignment is the diagonal sum; open = extend equals linear; costlier gaps never help; results are deterministic.',
-      'Biopython 1.86 cross-check: 44 reference cases, scores equal exactly; our alignments are valid; co-optimal counts equal in all 21 global cases and in 18 of 20 local cases (the other two enumerate extra tied alignments).',
-      'Worked examples from public web sources (Rosalind GLOB and GAFF, Wikipedia Needleman–Wunsch and Smith–Waterman) reproduce the stated answers.',
+      'Pairwise alignment: the dynamic-programming score equals the best score over every possible alignment on tiny inputs (global and local, linear and affine gaps, DNA and protein); 10 properties (re-scoring, symmetry, self-alignment, determinism, …) hold on 200 random inputs each.',
+      'Biopython 1.86: 44 stored reference alignments match exactly, and a fresh run of 6 new random cases through this app’s own exports matched with a maximum score difference of 0.',
+      'Trees: UPGMA recovers 200 random ultrametric trees and neighbor-joining 200 random additive trees exactly; neighbor-joining equals Biopython’s on all reference matrices; UPGMA equals SciPy’s average linkage. (Biopython’s own “UPGMA” averages without weights, which is WPGMA.)',
+      'Bootstrap: the same seed gives identical supports, whether split across 1, 2, 3 or 7 workers; a perfect alignment gives 100 %.',
+      'Progressive alignment: always a valid alignment; for 3 tiny sequences it reached the exhaustive optimum in 61 % of cases (never above it); it agrees with MAFFT on 100 % and 98.75 % of aligned residue pairs on the two bundled sets.',
+      'Worked examples from public web sources (Rosalind, Wikipedia) reproduce the stated answers.',
     ]));
 
     const caps = card('Limits and why');

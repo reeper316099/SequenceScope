@@ -300,7 +300,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     bootControls.hidden = !aligned;
     if (!aligned) {
       bootStatus.append(callout('info', a && a.mode === 'unaligned' && s.matrix
-        ? 'Bootstrap is unavailable for this input because the sequences are not aligned. Bootstrap resamples alignment COLUMNS, and pairwise distances alone have no columns to resample. Load an already-aligned FASTA in the Distances view (for example a MAFFT-aligned example). The multiple aligner arriving in Milestone C will let you align your own sequences here.'
+        ? 'Bootstrap is unavailable for this input because the sequences are not aligned. Bootstrap resamples alignment COLUMNS, and pairwise distances alone have no columns to resample. Load an already-aligned FASTA in the Distances view (for example a MAFFT-aligned example), or align your own sequences in the MSA view and use its “Build tree” button: that sends the alignment here with bootstrap enabled.'
         : 'Load an already-aligned FASTA in the Distances view to enable bootstrap.'));
       return;
     }

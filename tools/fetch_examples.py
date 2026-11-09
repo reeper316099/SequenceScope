@@ -128,8 +128,7 @@ def main() -> None:
     for acc in sorted(set(HBA + PAIR_GAPPED + PAIR_UNRELATED)):
         cache[acc] = fetch_uniprot(acc)
         time.sleep(0.2)
-    uni_cite = ("The UniProt Consortium. UniProt: the Universal Protein Knowledgebase. "
-                "Nucleic Acids Research (see https://www.uniprot.org/help/publications for the current reference).")
+    uni_cite = "The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. Nucleic Acids Research 53(D1):D609-D617 (2025). doi:10.1093/nar/gkae1010"  # verified against Crossref on 2026-11-08
     pick = lambda accs: [cache[a] for a in accs]  # noqa: E731
     write_set("globin_alpha_vertebrates", "Hemoglobin subunit alpha across 13 vertebrates", pick(HBA), "protein",
               UNIPROT_LICENSE, uni_cite, "Expected: primates cluster together, rodents together, fish/frog/bird outside mammals.",
@@ -144,7 +143,7 @@ def main() -> None:
               "Unrelated-pair demo.")
     cytb = [fetch_cytb(a, o) for a, o in MITO.items()]
     write_set("mito_cytb_mammals", "Mitochondrial CYTB coding sequence, 7 primates + mouse, cow, dog", cytb, "dna",
-              NCBI_LICENSE, "Sayers EW et al. GenBank / NCBI Nucleotide; cite each RefSeq accession (see records).",
+              NCBI_LICENSE, "Sayers EW, et al. GenBank 2025 update. Nucleic Acids Research 53(D1):D56-D61 (2025). doi:10.1093/nar/gkae1114 (records are NCBI RefSeq mitochondrial genomes; cite the accession of each record).",
               "Rapidly evolving third codon positions; mouse/cow/dog show higher divergence.", "DNA set for distance models/saturation.")
 
 

@@ -84,7 +84,7 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
   const phyBtn = el('button', 'btn btn-small', 'Export PHYLIP', { type: 'button' });
   const treeBtn = el('button', 'btn btn-primary', 'Build trees →', { type: 'button' });
   exportRow.append(csvBtn, phyBtn, treeBtn);
-  const honesty = callout('warn', 'Distances computed by aligning each pair on its own (the “not aligned” route) are less reliable for trees than distances from a good multiple alignment, because every pair is aligned in isolation. Milestone C adds a multiple aligner; until then you can load an already-aligned FASTA.');
+  const honesty = callout('warn', 'Distances computed by aligning each pair on its own (the “not aligned” route) are less reliable for trees than distances from a good multiple alignment, because every pair is aligned in isolation. For a better tree, align the whole set first in the MSA view (or load an already-aligned FASTA) and compute the distances from that alignment.');
   resCard.body.append(honesty, statusHost, runRow, heatmap.root, tableWrap, exportRow);
   root.append(loadCard.root, modelCard.root, resCard.root);
 
