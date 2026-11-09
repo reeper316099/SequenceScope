@@ -5,7 +5,7 @@ import { loadExampleIndex, loadExampleSet, recordText, shortName } from './examp
 import type { AppView } from './view';
 
 /** Builds the Examples view; `openInAlign` switches to the Align view with the two texts loaded. */
-export function createExamplesView(openInAlign: (a: string, b: string) => void, openInDistances: (setId: string, aligned: boolean) => void): AppView {
+export function createExamplesView(openInAlign: (a: string, b: string) => void, openInDistances: (setId: string, aligned: boolean) => void, openInMsa: (setId: string) => void): AppView {
   const root = el('div', 'view view-examples');
   let loaded = false;
   const build = async (): Promise<void> => {
@@ -34,6 +34,9 @@ export function createExamplesView(openInAlign: (a: string, b: string) => void, 
         c.body.append(row);
         if (set.records.length >= 3) {
           const dRow = el('div', 'row');
+          const toM = el('button', 'btn', 'Align the whole set (MSA) →', { type: 'button' });
+          toM.addEventListener('click', () => openInMsa(s.id));
+          dRow.append(toM);
           const toD = el('button', 'btn', 'Open the whole set in Distances →', { type: 'button' });
           toD.addEventListener('click', () => openInDistances(s.id, false));
           dRow.append(toD);

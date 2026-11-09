@@ -16,7 +16,7 @@ export interface ScoringPanel {
 }
 
 /** Builds the panel. `onChange` is called with a valid state whenever the user edits a control. */
-export function createScoringPanel(initial: ScoringState, onChange: (s: ScoringState) => void): ScoringPanel {
+export function createScoringPanel(initial: ScoringState, onChange: (s: ScoringState) => void, opts: { hideMode?: boolean } = {}): ScoringPanel {
   let state: ScoringState = initial;
   let alphabet: Alphabet | 'unknown' = 'unknown';
   const root = el('div', 'scoring');
@@ -60,7 +60,7 @@ export function createScoringPanel(initial: ScoringState, onChange: (s: ScoringS
   const simpleRow = row(match.wrap, mismatch.wrap);
   root.append(
     lab('Preset', presetSel), presetNote,
-    lab('Mode', modeSel), modeNote,
+    ...(opts.hideMode === true ? [] : [lab('Mode', modeSel), modeNote]),
     lab('Substitution scores', subKind), simpleRow, matrixDetails,
     lab('Gap model', gapKind), gapRow, gapNote, err,
   );

@@ -37,3 +37,23 @@ export function matrixToCsv(a: string, b: string, valueAt: (i: number, j: number
   }
   return rows.join('\n') + '\n';
 }
+
+/** Aligned FASTA for a multiple alignment (rows keep their input order). */
+export function msaToFasta(ids: readonly string[], rows: readonly string[]): string {
+  return ids.map((id, k) => [`>${id}`, ...wrap(rows[k] ?? '', 60)].join('\n')).join('\n') + '\n';
+}
+
+/** CLUSTAL-style text for a multiple alignment: blocks of 60 columns, '*' marks columns where every sequence has the same residue. */
+export function msaToClustal(ids: readonly string[], rows: readonly string[]): string {
+  const width = Math.min(30, Math.max(10, ...ids.map((i) => i.length)) + 1);
+  const name = (s: string): string => s.slice(0, width - 1).padEnd(width, ' ');
+  const len = rows[0]?.length ?? 0;
+  const lines = ['CLUSTAL-style multiple alignment (exported by SequenceScope; produced by its own progressive aligner, not by Clustal)', ''];
+  for (let i = 0; i < len; i += 60) {
+    ids.forEach((id, k) => lines.push(name(id) + (rows[k] ?? '').slice(i, i + 60)));
+    let cons = '';
+    for (let c = i; c < Math.min(len, i + 60); c++) { const first = rows[0]?.charAt(c) ?? '-'; cons += first !== '-' && rows.every((r) => r.charAt(c) === first) ? '*' : ' '; }
+    lines.push(' '.repeat(width) + cons, '');
+  }
+  return lines.join('\n');
+}

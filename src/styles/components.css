@@ -170,3 +170,10 @@ dialog::backdrop { background: rgb(0 0 0 / 40%); }
 .compare-list ul { margin: 4px 0; padding-left: 20px; }
 .compare-summary { display: flex; flex-direction: column; gap: 6px; }
 .curve-box svg { width: 100%; max-width: 560px; height: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+
+/* ---- Milestone C: multiple alignment ---- */
+.msa-scroll { position: relative; overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.msa-spacer { position: absolute; top: 0; left: 0; pointer-events: none; }
+.msa-canvas { position: sticky; top: 0; left: 0; display: block; cursor: crosshair; touch-action: pan-x pan-y; }
+.msa-text { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 8px; white-space: pre; font-size: 0.8rem; }
+.msa-summary .stats { margin-bottom: 6px; }

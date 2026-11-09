@@ -14,11 +14,11 @@ const tmp = (): string => mkdtempSync(path.join(tmpdir(), 'sscope-files-'));
 
 /** Sets the simple DNA scoring fields (match, mismatch, linear gap). */
 async function setLinearDna(page: Page, match: number, mismatch: number, gap: number): Promise<void> {
-  await page.getByLabel('Substitution scoring').selectOption('simple');
-  await page.getByLabel('Gap model').selectOption('linear');
-  await page.getByLabel('Match score', { exact: true }).fill(String(match));
-  await page.getByLabel('Mismatch score', { exact: true }).fill(String(mismatch));
-  await page.getByLabel('Linear gap penalty').fill(String(gap));
+  await page.locator('.view-align').getByLabel('Substitution scoring').selectOption('simple');
+  await page.locator('.view-align').getByLabel('Gap model').selectOption('linear');
+  await page.locator('.view-align').getByLabel('Match score', { exact: true }).fill(String(match));
+  await page.locator('.view-align').getByLabel('Mismatch score', { exact: true }).fill(String(mismatch));
+  await page.locator('.view-align').getByLabel('Linear gap penalty').fill(String(gap));
 }
 
 let ctx: Launched;
@@ -79,13 +79,13 @@ test('changing scoring updates results; affine and linear differ on a known exam
   await setLinearDna(page, 2, -3, 4);
   const lin = align(a, b, 'global', compileScoring({ substitution: { kind: 'simple', match: 2, mismatch: -3 }, gaps: { kind: 'linear', gap: 4 } }, 'dna')).score;
   await expect(scoreTile(page)).toHaveText(String(lin));
-  await page.getByLabel('Gap model').selectOption('affine');
-  await page.getByLabel('Affine gap opening penalty').fill('5');
-  await page.getByLabel('Affine gap extension penalty').fill('1');
+  await page.locator('.view-align').getByLabel('Gap model').selectOption('affine');
+  await page.locator('.view-align').getByLabel('Affine gap opening penalty').fill('5');
+  await page.locator('.view-align').getByLabel('Affine gap extension penalty').fill('1');
   const aff = align(a, b, 'global', compileScoring({ substitution: { kind: 'simple', match: 2, mismatch: -3 }, gaps: { kind: 'affine', open: 5, extend: 1 } }, 'dna')).score;
   expect(aff).not.toBe(lin);
   await expect(scoreTile(page)).toHaveText(String(aff));
-  await page.getByLabel('Alignment mode').selectOption('local');
+  await page.locator('.view-align').getByLabel('Alignment mode').selectOption('local');
   await expect(page.locator('.stat', { hasText: 'Aligned region' })).toContainText('A ');
 });
 
@@ -94,8 +94,8 @@ test('shuffle test: fixed seed reproduces exactly; Cancel works mid-run', async 
   const a = 'ACGTTGCAAGGCTTAACGGATCCATGCAAGTCCGATTAGC'.repeat(3);
   const b = 'TTGACCGGATAACGTCAGGCTAATCGGACTTAGCCATGAA'.repeat(3);
   await enterPair(page, a, b);
-  await page.getByLabel('Number of shuffles').fill('60');
-  await page.getByLabel('Random seed', { exact: true }).fill('777');
+  await page.locator('.view-align').getByLabel('Number of shuffles').fill('60');
+  await page.locator('.view-align').getByLabel('Random seed', { exact: true }).fill('777');
   const run = async (): Promise<string> => {
     await page.getByRole('button', { name: 'Run shuffle test' }).click();
     await page.waitForSelector('.signif-results .stat');
@@ -106,7 +106,7 @@ test('shuffle test: fixed seed reproduces exactly; Cancel works mid-run', async 
   expect(second).toBe(first);
   expect(first.toLowerCase()).toContain('seed');
   expect(first).toContain('777');
-  await page.getByLabel('Number of shuffles').fill('5000');
+  await page.locator('.view-align').getByLabel('Number of shuffles').fill('5000');
   await page.getByRole('button', { name: 'Run shuffle test' }).click();
   await expect(page.locator('.signif-status')).toContainText('Running');
   await page.getByRole('button', { name: 'Cancel' }).click();
@@ -115,15 +115,15 @@ test('shuffle test: fixed seed reproduces exactly; Cancel works mid-run', async 
 
 test('bad input is reported with positions and nothing is silently dropped; too-large input is refused clearly', async () => {
   const { page } = ctx;
-  await page.getByLabel('Sequence B: paste residues or FASTA').fill('ACGTACGTACGTACGT');
-  await page.getByLabel('Sequence A: paste residues or FASTA').fill('ACGTACGTAC!GTACGT');
+  await page.locator('.view-align').getByLabel('Sequence B: paste residues or FASTA').fill('ACGTACGTACGTACGT');
+  await page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA').fill('ACGTACGTAC!GTACGT');
   await page.locator('.view-align').getByLabel('Alphabet').selectOption('dna');
   await expect(page.locator('.seq-messages').first()).toContainText('! at 11');
   await expect(page.locator('.view-align .status-host')).toContainText('Fix the problems');
-  await page.getByLabel('Sequence A: paste residues or FASTA').fill('AC GT 12 acgt');
+  await page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA').fill('AC GT 12 acgt');
   await expect(page.locator('.seq-messages').first()).toContainText('Removed 2 digit');
-  await page.getByLabel('Sequence A: paste residues or FASTA').fill('A'.repeat(6000));
-  await page.getByLabel('Sequence B: paste residues or FASTA').fill('C'.repeat(6000));
+  await page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA').fill('A'.repeat(6000));
+  await page.locator('.view-align').getByLabel('Sequence B: paste residues or FASTA').fill('C'.repeat(6000));
   await expect(page.locator('.view-align .status-host')).toContainText('limit is 25,010,001');
 });
 
@@ -133,7 +133,7 @@ test('project save, reopen, corrupted and wrong-version files', async () => {
   const file = path.join(dir, 'p.json');
   await enterPair(page, 'GCATGCG', 'GATTACA');
   await setLinearDna(page, 3, -2, 5);
-  await page.getByLabel('Random seed', { exact: true }).fill('4242');
+  await page.locator('.view-align').getByLabel('Random seed', { exact: true }).fill('4242');
   await app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath: f }); }, file);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('menu-action', { detail: 'save-project' })));
   await expect.poll(() => existsSync(file)).toBe(true);
@@ -141,12 +141,12 @@ test('project save, reopen, corrupted and wrong-version files', async () => {
   expect(saved.align.seed).toBe(4242);
   expect(saved.align.scoring.gaps.gap).toBe(5);
 
-  await page.getByLabel('Sequence A: paste residues or FASTA').fill('TTTTTTTT');
+  await page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA').fill('TTTTTTTT');
   await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [f], bookmarks: [] }); }, file);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('menu-action', { detail: 'open-project' })));
-  await expect(page.getByLabel('Sequence A: paste residues or FASTA')).toHaveValue('GCATGCG');
-  await expect(page.getByLabel('Random seed', { exact: true })).toHaveValue('4242');
-  await expect(page.getByLabel('Linear gap penalty')).toHaveValue('5');
+  await expect(page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA')).toHaveValue('GCATGCG');
+  await expect(page.locator('.view-align').getByLabel('Random seed', { exact: true })).toHaveValue('4242');
+  await expect(page.locator('.view-align').getByLabel('Linear gap penalty')).toHaveValue('5');
 
   const bad = path.join(dir, 'bad.json');
   writeFileSync(bad, '{"app":"SequenceScope","formatVersion":1,"align":');
@@ -158,7 +158,7 @@ test('project save, reopen, corrupted and wrong-version files', async () => {
   await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [f], bookmarks: [] }); }, newer);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('menu-action', { detail: 'open-project' })));
   await expect(page.locator('#toast')).toContainText('newer version');
-  await expect(page.getByLabel('Sequence A: paste residues or FASTA')).toHaveValue('GCATGCG'); // unchanged by the failed opens
+  await expect(page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA')).toHaveValue('GCATGCG'); // unchanged by the failed opens
 });
 
 test('exports (FASTA, CLUSTAL-style, CSV, PNG) go through the native save path', async () => {
@@ -231,8 +231,8 @@ test('Learn view renders MathML; examples load into the Align view; About lists 
   await page.waitForSelector('.view-examples .card');
   await page.locator('.view-examples .card', { hasText: 'unrelated' }).getByRole('button', { name: /Align this pair/ }).click();
   await page.waitForSelector('.stats .stat-value');
-  await expect(page.getByLabel('Sequence A: paste residues or FASTA')).toHaveValue(/HBA_HUMAN|P69905/);
-  await expect(page.getByLabel('Substitution scoring')).toHaveValue('BLOSUM62'); // protein input switches to the protein preset
+  await expect(page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA')).toHaveValue(/HBA_HUMAN|P69905/);
+  await expect(page.locator('.view-align').getByLabel('Substitution scoring')).toHaveValue('BLOSUM62'); // protein input switches to the protein preset
   await page.getByRole('button', { name: '7  About', exact: true }).click();
   await expect(page.locator('.view-about')).toContainText('CC BY 4.0');
 });

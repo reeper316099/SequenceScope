@@ -28,12 +28,17 @@ test('screenshots', async () => {
   await page.getByRole('button', { name: '3  Trees', exact: true }).click();
   await page.locator('.view-trees button', { hasText: 'Run bootstrap' }).first().click();
   await page.waitForSelector('.boot-result table', { timeout: 30000 });
+  // Milestone C: align the same family with the app's own progressive aligner so the MSA view has data.
+  await page.getByRole('button', { name: '4  MSA', exact: true }).click();
+  await page.getByLabel('Sequences to align (FASTA)').fill(readFileSync('examples/globin_alpha_vertebrates/sequences.fasta', 'utf8'));
+  await page.locator('.view-msa').getByRole('button', { name: 'Align', exact: true }).click();
+  await page.waitForSelector('.view-msa .msa-summary .stat', { timeout: 60000 });
   for (const mode of ['light', 'dark'] as const) {
     await theme(page, mode);
     for (const [id, label] of views) {
       await page.getByRole('button', { name: label, exact: true }).click();
       await page.waitForTimeout(400);
-      await page.setViewportSize({ width: 1400, height: id === 'align' || id === 'trees' || id === 'distances' ? 2900 : 1000 });
+      await page.setViewportSize({ width: 1400, height: id === 'align' || id === 'trees' || id === 'distances' || id === 'msa' ? 2900 : 1000 });
       await page.waitForTimeout(500);
       await page.screenshot({ path: `${OUT}/${id}-${mode}.png` });
       await page.setViewportSize({ width: 1400, height: 900 });

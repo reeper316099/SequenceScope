@@ -7,11 +7,11 @@ import type { MenuAction, SequenceScopeApi } from './shared/types';
 import { createAboutView } from './ui/aboutView';
 import { createAlignView } from './ui/alignView';
 import { toast } from './ui/cards';
-import { createComingSoonView } from './ui/comingSoonView';
 import { createDetailsPanel } from './ui/detailsPanel';
 import { DataStore } from './ui/dataStore';
 import { createDistancesView } from './ui/distancesView';
 import { createTreesView } from './ui/treesView';
+import { createMsaView } from './ui/msaView';
 import { loadExampleText } from './ui/examples';
 import { parseProject, PROJECT_FORMAT_VERSION, serializeProject } from './io/project';
 import { el } from './ui/dom';
@@ -37,12 +37,13 @@ function main(): void {
   const store = new DataStore();
   const distances = createDistancesView(store, () => show(2));
   const trees = createTreesView(store);
+  const msa = createMsaView((alignedFasta, method) => { store.update({ alphabetChoice: 'auto' }); distances.loadText(alignedFasta, 'aligned', true); trees.setMethod(method); show(2); toast('Alignment sent to the Trees view: distances were computed from the alignment columns, so bootstrap is available.'); });
   const views: AppView[] = [
     align,
     distances,
     trees,
-    createComingSoonView('msa', 'MSA', 'Milestone C', 'Progressive multiple sequence alignment with conservation and bootstrap trees from the app’s own alignments.'),
-    createExamplesView((a, b) => { show(0); align.loadTexts(a, b); }, (setId, aligned) => { void loadExampleText(setId, aligned).then((t) => { store.update({ alphabetChoice: 'auto' }); distances.loadText(t, aligned ? 'aligned' : 'unaligned'); show(1); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.')); }),
+    msa,
+    createExamplesView((a, b) => { show(0); align.loadTexts(a, b); }, (setId, aligned) => { void loadExampleText(setId, aligned).then((t) => { store.update({ alphabetChoice: 'auto' }); distances.loadText(t, aligned ? 'aligned' : 'unaligned'); show(1); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.')); }, (setId) => { void loadExampleText(setId, false).then((t) => { msa.loadText(t); show(3); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.')); }),
     createLearnView(() => align.getContext()),
     createAboutView(),
   ];
@@ -104,6 +105,7 @@ function main(): void {
     const ts = trees.getState();
     const text = serializeProject({
       app: 'SequenceScope', formatVersion: PROJECT_FORMAT_VERSION, appVersion: info.version, savedAt: new Date().toISOString(), align: align.getInputs(),
+      msa: msa.getState(),
       trees: { text: st.text, alphabet: st.alphabetChoice, mode: st.modeChoice, model: st.model, gapPolicy: st.gapPolicy, presetId: st.presetId, method: ts.method, seed: ts.seed, replicates: ts.replicates, importedNewick: ts.importedNewick },
     });
     const r = await window.sequenceScope.saveFile({ suggestedName: 'sequencescope-project.json', extensions: ['json'], content: text, encoding: 'utf8' });
@@ -122,6 +124,7 @@ function main(): void {
       distances.loadText(t.text, t.mode);
       trees.setState({ method: t.method, seed: t.seed, replicates: t.replicates, importedNewick: t.importedNewick });
     }
+    if (p.project.msa) msa.setState(p.project.msa);
     toast(`Opened project ${r.name}.`);
   };
 
@@ -136,7 +139,8 @@ function main(): void {
     if (a === 'open-newick') { show(2); trees.handleAction?.(a); return; }
     const active = stack[pos] ?? 0;
     if (a === 'open-fasta' && (active === 1 || active === 2)) { show(1); distances.handleAction?.(a); return; }
-    if ((a === 'open-fasta' || a === 'export') && active !== 0 && active !== 2) show(0);
+    if (a === 'open-fasta' && active === 3) { msa.handleAction?.(a); return; }
+    if ((a === 'open-fasta' || a === 'export') && active !== 0 && active !== 2 && active !== 3) show(0);
     const view = views[stack[pos] ?? 0];
     if (!(view?.handleAction?.(a) ?? false)) toast('That command is not available in this view.');
   });

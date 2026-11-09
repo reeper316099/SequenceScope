@@ -42,6 +42,15 @@ export const projectSchema = z.object({
       importedNewick: z.string().max(MAX_TEXT).nullable(),
     })
     .optional(),
+  /** Multiple-alignment inputs (Milestone C); absent in older files. */
+  msa: z
+    .object({
+      text: z.string().max(MAX_TEXT),
+      alphabet: z.enum(['auto', 'dna', 'rna', 'protein']),
+      guide: z.enum(['upgma', 'nj']),
+      scoring: z.object({ substitution: substitutionSchema, gaps: gapSchema }),
+    })
+    .optional(),
 });
 export type ProjectFile = z.infer<typeof projectSchema>;
 

@@ -32,7 +32,7 @@ export interface TreesProjectState {
 }
 
 /** Builds the Trees view around the shared data store. */
-export function createTreesView(store: DataStore): AppView & { getState(): TreesProjectState; setState(s: TreesProjectState): void; importNewickText(text: string, label?: string): boolean } {
+export function createTreesView(store: DataStore): AppView & { getState(): TreesProjectState; setState(s: TreesProjectState): void; importNewickText(text: string, label?: string): boolean; setMethod(m: 'upgma' | 'nj'): void } {
   const root = el('div', 'view view-trees');
   root.append(callout('warn', HONESTY));
   root.firstElementChild?.classList.add('honesty-banner');
@@ -199,6 +199,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
       stepper.setResult(null);
       showTree(imported.at(-1)?.tree ?? null, false); renderBoot(); return;
     }
+    if (s.fromMsa) srcStatus.append(callout('warn', 'This alignment was made by SequenceScope’s own progressive aligner, which is a heuristic and not guaranteed optimal: an early alignment mistake is frozen in and propagates into the distances, the tree, and the bootstrap values.'));
     const via = a.mode === 'unaligned' ? ' Distances came from aligning each pair on its own: such trees are less reliable than trees from a good multiple alignment.' : '';
     srcStatus.append(callout('info', `${s.matrix.n} taxa, ${s.matrix.model} distances.${via}`));
     pick();
@@ -353,6 +354,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
   return {
     id: 'trees', title: 'Trees', root,
     importNewickText,
+    setMethod(m) { method = m; pick(); renderBoot(); },
     getState: () => ({ method, seed: Number(seedIn.value) || DEFAULT_BOOT_SEED, replicates: Number(repIn.value) || 100, importedNewick: imported.length > 0 ? writeNewick((imported.at(-1) as { tree: Tree }).tree) : null }),
     setState(st) { method = st.method; repIn.value = String(st.replicates); seedIn.value = String(st.seed); if (st.importedNewick) importNewickText(st.importedNewick, 'Imported tree (from project)'); pick(); },
     onShow() { renderBoot(); refreshCompare(); },

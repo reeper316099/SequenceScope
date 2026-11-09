@@ -1,6 +1,6 @@
 # ALGORITHMS.md — recurrences, conventions, and how each was checked
 
-Status: **Milestone B core added (sections 15-17).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
+Status: **Milestone C core added (section 18).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
 decisions that get their tests in later phases. Nothing here is "from memory without a check".
 
 ## 0. Notation
@@ -105,3 +105,17 @@ Replicate r draws its columns from its own stream `deriveSeed(seed, r)`; `bootst
 
 ## 17. Caps (Milestone B)
 100 sequences per set; pairwise-alignment distances limited to 1.5e9 cell updates in total (every pair aligned globally); bootstrap as above.
+
+## 18. Progressive multiple alignment as built (Milestone C; section 11 made final)
+- **Guide tree:** every pair is aligned globally (same scoring as the merges) and its p-distance (pairwise deletion) is taken; a pair with no comparable sites gets distance 1. UPGMA, or neighbor-joining rooted at its midpoint (only the branching order is used). Two sequences skip the tree; one is returned unchanged.
+- **Profile-profile merge:** Gotoh affine DP over columns. Column score = (sum of s(a,b) over residue pairs a in the first column, b in the second) / (|A||B|); pairs with a gap contribute 0. Gap open/extend are charged per profile column, unscaled, with the same convention and tie order as the pairwise aligner, so merging two single sequences reproduces the pairwise global alignment exactly (rows and score; tested on 200 random pairs). End gaps are charged.
+- **"Once a gap, always a gap":** a merge only inserts all-gap columns into the two profiles. Tested two ways: after any two-profile merge, deleting the inserted columns returns each input profile exactly (200 random profile pairs), and for every merge step in a 5-sequence run (40 seeded sets) the sub-alignment recorded at that step is exactly what remains in the final alignment once all-gap columns are removed.
+- **Score:** the reported sum-of-pairs score is computed independently of the DP: every pair of rows is projected (columns where both have a gap are removed) and scored with the column-by-column scorer.
+- **Measured guarantees and non-guarantees (seeded tests, 2026-11-08):**
+  - Validity always holds: gap-free rows equal the inputs, rows have equal length, no all-gap column (property tests, DNA and protein).
+  - On 200 seeded related sets the sum-of-pairs score was never below that of the trivially padded alignment (0 misses).
+  - **Order sensitivity:** permuting the input order gave the same sum-of-pairs score in 110 of 150 sets (73.3 %); the largest difference was 18.7 % of the maximum attainable score. Order independence is therefore NOT claimed; only validity, and exact symmetry for two sequences.
+  - **Versus the brute-force optimum** (every possible alignment of 3 sequences of 2-4 residues, match +2, mismatch -2, gap 3/1): the progressive score never exceeded the optimum and reached it in 92 of 150 cases (61.3 %). A pinned 3-sequence example (ACTA, GATC, GCGTG) scores -14 progressive versus -10 optimal.
+  - **Versus MAFFT 7.526** (derived alignments stored in `examples/`): 100.00 % of MAFFT's aligned residue pairs are also aligned by our alignment on the 13 alpha-globins, and 98.75 % on the 10 CYTB sequences. This agreement is high because these sets are closely related and gap-poor; it says nothing about hard cases.
+- **Speed and caps (plain Node, M-series Mac):** up to 50 sequences of up to 3,000 residues; the total pairwise work cap (1.5e9 cell updates) is the binding limit. Measured protein runs: 10 x 300 in 0.1 s, 20 x 500 in 0.9 s, 30 x 1000 in 7.6 s (566 MB peak RSS), 50 x 1000 in 20.3 s, 30 x 1500 in 17.1 s (934 MB). 50 x 1500 is refused with a typed error.
+- **Conservation:** per-column identity (most common residue / all sequences), Shannon entropy over non-gap residues, conservation = (1 - H/Hmax) x (1 - gaps/n), and a consensus rule ('-' if more than half are gaps; else the most common residue, ties alphabetical, uppercase if identity >= 0.5, otherwise '.').

@@ -26,7 +26,7 @@ const POLICY_TEXT: Record<GapPolicy, { label: string; text: string }> = {
 };
 
 /** Builds the Distances view around the shared data store. */
-export function createDistancesView(store: DataStore, goToTrees: () => void): AppView & { loadText(text: string, mode: SetMode | 'auto'): void } {
+export function createDistancesView(store: DataStore, goToTrees: () => void): AppView & { loadText(text: string, mode: SetMode | 'auto', fromMsa?: boolean): void } {
   const root = el('div', 'view view-distances');
   const heatmap = createHeatmap();
   let worker: Worker | null = null;
@@ -196,8 +196,8 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
     worker.postMessage(req);
   }, 250);
 
-  function loadText(text: string, mode: SetMode | 'auto'): void {
-    store.update({ text, modeChoice: mode });
+  function loadText(text: string, mode: SetMode | 'auto', fromMsa = false): void {
+    store.update({ text, modeChoice: mode, fromMsa });
     area.value = text;
     analyze();
   }

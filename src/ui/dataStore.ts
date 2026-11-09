@@ -15,12 +15,14 @@ export interface DataState {
   alphabet: Alphabet | null;
   /** Aligned rows used for the matrix, when the input was an alignment (needed for bootstrap). */
   alignedRows: string[] | null;
+  /** True when the aligned set came from the app's own multiple aligner (shows the extra caveat in the Trees view). */
+  fromMsa: boolean;
 }
 
 type Listener = (s: DataState) => void;
 
 export class DataStore {
-  state: DataState = { text: '', alphabetChoice: 'auto', modeChoice: 'auto', analysis: null, model: 'p', gapPolicy: 'pairwise-deletion', presetId: 'dna-affine', matrix: null, alphabet: null, alignedRows: null };
+  state: DataState = { text: '', alphabetChoice: 'auto', modeChoice: 'auto', analysis: null, model: 'p', gapPolicy: 'pairwise-deletion', presetId: 'dna-affine', matrix: null, alphabet: null, alignedRows: null, fromMsa: false };
   private listeners: Listener[] = [];
 
   /** Merges a partial state and notifies subscribers. */

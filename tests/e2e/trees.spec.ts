@@ -29,7 +29,7 @@ async function loadSet(page: Page, fasta: string, mode: 'aligned' | 'unaligned' 
 /** Chooses a bundled example by its visible text. */
 async function loadExample(page: Page, labelPart: string): Promise<void> {
   await nav(page, '2  Distances');
-  const sel = page.getByLabel('Load an example set');
+  const sel = page.getByLabel('Load an example set', { exact: true });
   await expect.poll(async () => (await sel.locator('option').allInnerTexts()).some((t) => t.includes(labelPart))).toBe(true);
   const value = await sel.locator('option', { hasText: labelPart }).first().getAttribute('value');
   await sel.selectOption(value ?? '');
