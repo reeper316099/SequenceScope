@@ -69,12 +69,16 @@ export interface AppInfo {
   platform: string;
 }
 
-/** The ONLY four functions the preload exposes to the renderer. */
+/** Result of copyText. */
+export type CopyTextResult = { ok: true } | { ok: false; message: string };
+
+/** The ONLY functions the preload exposes to the renderer (copyText was added in Milestone B for Newick clipboard copy). */
 export interface SequenceScopeApi {
   openFile(kind: OpenFileKind): Promise<OpenFileResult>;
   saveFile(request: SaveFileRequest): Promise<SaveFileResult>;
   openExternal(url: string): Promise<OpenExternalResult>;
   getAppInfo(): Promise<AppInfo>;
+  copyText(text: string): Promise<CopyTextResult>;
 }
 
 /** IPC channel names (main registers handlers, preload invokes them). */
@@ -83,6 +87,7 @@ export const IPC = {
   saveFile: 'sequencescope:save-file',
   openExternal: 'sequencescope:open-external',
   getAppInfo: 'sequencescope:get-app-info',
+  copyText: 'sequencescope:copy-text',
 } as const;
 
 /** Menu commands main may ask the renderer to perform (delivered as a DOM CustomEvent, see electron/main.ts). */
@@ -126,7 +131,8 @@ export interface PairwiseAlignment {
 
 /** Typed error codes thrown by the bio modules (never silent garbage). */
 export type BioErrorCode =
-  | 'too-large' | 'invalid-residue' | 'invalid-scoring' | 'invalid-argument' | 'unknown-matrix' | 'alphabet-mismatch';
+  | 'too-large' | 'invalid-residue' | 'invalid-scoring' | 'invalid-argument' | 'unknown-matrix' | 'alphabet-mismatch'
+  | 'not-aligned' | 'too-few-sequences' | 'duplicate-names' | 'saturated-distances' | 'invalid-tree' | 'newick-syntax' | 'incompatible-model';
 
 // ---- Pairwise worker protocol (Milestone A) ----
 
@@ -186,4 +192,45 @@ export interface ShuffleSummary {
 export interface WorkerErrorInfo {
   code: BioErrorCode | 'unexpected';
   message: string;
+}
+
+// ---- Milestone B: distances and trees ----
+
+/** Distance models: p-distance (raw proportion), Jukes-Cantor (DNA/RNA), Poisson correction (protein). */
+export type DistanceModel = 'p' | 'jc' | 'poisson';
+
+/** What to do with alignment columns containing a gap: skip them (pairwise deletion) or count them as differences. */
+export type GapPolicy = 'pairwise-deletion' | 'gaps-as-differences';
+
+/** A tree node. Leaves have a `name` and no children. `length` is the branch above the node; `support` is a bootstrap percentage. */
+export interface TreeNode {
+  name?: string;
+  label?: string; // internal-node label that is not a number
+  length?: number;
+  support?: number;
+  children: TreeNode[];
+}
+
+/** A tree is just its root node. A root with 3 children is the usual form of an unrooted tree. */
+export interface Tree {
+  root: TreeNode;
+}
+
+/** Status of one distance cell: ok, saturated (correction undefined), or undefined (no comparable sites). */
+export const DIST_OK = 0;
+export const DIST_SATURATED = 1;
+export const DIST_UNDEFINED = 2;
+
+/** Symmetric distance matrix with a status per cell, so NaN/Infinity never appear. */
+export interface DistanceMatrix {
+  names: string[];
+  n: number;
+  /** n*n values; only meaningful where status is DIST_OK. */
+  values: Float64Array;
+  /** n*n statuses (DIST_OK / DIST_SATURATED / DIST_UNDEFINED). */
+  status: Uint8Array;
+  /** n*n number of compared sites for each pair. */
+  compared: Uint32Array;
+  model: DistanceModel;
+  gapPolicy: GapPolicy;
 }

@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["ES2022", "DOM"], "types": ["node"] },
-  "include": ["tests/**/*.ts", "src/bio/**/*.ts", "src/io/**/*.ts", "src/shared/**/*.ts", "src/ui/model.ts", "src/ui/history.ts", "src/ui/matrixGeometry.ts", "src/ui/residueClass.ts", "electron/appPath.ts", "electron/allowlist.ts"]
+  "include": ["tests/**/*.ts", "src/bio/**/*.ts", "src/io/**/*.ts", "src/shared/**/*.ts", "src/ui/model.ts", "src/ui/history.ts", "src/ui/matrixGeometry.ts", "src/ui/residueClass.ts", "src/ui/sequenceSet.ts", "src/ui/treeLayout.ts", "src/ui/treeSteps.ts", "src/ui/histogram.ts", "electron/appPath.ts", "electron/allowlist.ts"]
 }

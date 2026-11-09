@@ -24,7 +24,7 @@
     "test:e2e": "npm run build && playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "ref:generate": "python3 -I tools/gen_alignment_refs.py && python3 -I tools/gen_tree_refs.py",
+    "ref:generate": "python3 -I tools/gen_alignment_refs.py && python3 -I tools/gen_tree_refs.py && python3 -I tools/gen_distance_refs.py && python3 -I tools/gen_upgma_scipy_refs.py",
     "examples:fetch": "python3 -I tools/fetch_examples.py && python3 -I tools/align_examples.py",
     "screenshots": "npm run build && SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts"
   },

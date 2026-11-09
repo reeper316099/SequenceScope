@@ -144,3 +144,29 @@ dialog::backdrop { background: rgb(0 0 0 / 40%); }
 .stepper input[type='range'] { max-width: 220px; }
 
 .prose .mono { white-space: pre; }
+
+/* ---- Milestone B: distances and trees ---- */
+.heatmap { overflow-x: auto; }
+.heatmap-canvas { display: block; border: 1px solid var(--border); border-radius: 10px; }
+.dist-table-wrap { max-height: 360px; }
+.dist-table td.unusable, .matrix-table td.unusable { color: var(--bad); font-style: italic; background: var(--bad-bg); }
+.th-btn { all: unset; cursor: pointer; font: inherit; padding: 2px 4px; border-radius: 6px; }
+.th-btn:hover { background: var(--surface); }
+.th-btn:focus-visible { outline: 3px solid var(--secondary); }
+.honesty-banner { position: sticky; top: 0; z-index: 5; }
+.treeviewer { width: 100%; }
+.tree-wrap { overflow: auto; max-height: 640px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.tree-svg { display: block; cursor: grab; }
+.tree-svg:focus-visible { outline: 3px solid var(--secondary); outline-offset: -3px; }
+.tree-selinfo p { margin: 0; }
+.tree-outline { max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+.tree-outline ul { list-style: none; padding-left: 18px; margin: 2px 0; }
+.outline-btn { all: unset; cursor: pointer; padding: 1px 6px; border-radius: 6px; }
+.outline-btn:hover, .outline-btn:focus-visible { background: var(--surface-2); outline: 2px solid var(--secondary); }
+.tstepper { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
+.tstep-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+.tstep-table h4 { margin: 4px 0; font-size: 0.9rem; }
+.tstep-formulas .calc { margin: 3px 0; font-size: 0.85rem; }
+.compare-list ul { margin: 4px 0; padding-left: 20px; }
+.compare-summary { display: flex; flex-direction: column; gap: 6px; }
+.curve-box svg { width: 100%; max-width: 560px; height: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }

@@ -12,6 +12,9 @@ export const saveFileRequestSchema = z.object({
   encoding: z.enum(['utf8', 'base64']),
 });
 
+/** Runtime check for copyText arguments (clipboard text from the renderer, size-capped). */
+export const copyTextRequestSchema = z.string().max(5 * 1024 * 1024);
+
 /** Runtime check for openExternal arguments. */
 export const openExternalRequestSchema = z.string().min(1).max(2048);
 

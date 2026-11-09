@@ -56,20 +56,20 @@ test('step-through works with the keyboard and ends at the direct result; reduce
   await setLinearDna(page, 1, -1, 1);
   await expect(scoreTile(page)).toHaveText('0');
   const finalRows = await page.locator('.aln-body').innerText();
-  await page.locator('.stepper').focus();
+  await page.locator('.view-align .stepper').focus();
   await page.keyboard.press('Home');
-  await expect(page.locator('.stepper-status')).toContainText('Ready');
+  await expect(page.locator('.view-align .stepper-status')).toContainText('Ready');
   for (let k = 0; k < 3; k++) await page.keyboard.press('ArrowRight');
-  await expect(page.locator('.stepper-status')).toContainText('cell 3 of 49');
+  await expect(page.locator('.view-align .stepper-status')).toContainText('cell 3 of 49');
   await expect(page.locator('.details')).toContainText('Cell (i = 1, j = 3)');
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('.stepper-status')).toContainText('cell 2 of 49');
+  await expect(page.locator('.view-align .stepper-status')).toContainText('cell 2 of 49');
   await page.keyboard.press('End');
-  await expect(page.locator('.stepper-status')).toContainText('Done');
+  await expect(page.locator('.view-align .stepper-status')).toContainText('Done');
   expect(await page.locator('.aln-body').innerText()).toBe(finalRows);
   await page.keyboard.press('Home');
   await page.keyboard.press('Shift+ArrowRight'); // 10 steps
-  await expect(page.locator('.stepper-status')).toContainText('cell 10 of 49');
+  await expect(page.locator('.view-align .stepper-status')).toContainText('cell 10 of 49');
 });
 
 test('changing scoring updates results; affine and linear differ on a known example', async () => {
@@ -95,7 +95,7 @@ test('shuffle test: fixed seed reproduces exactly; Cancel works mid-run', async 
   const b = 'TTGACCGGATAACGTCAGGCTAATCGGACTTAGCCATGAA'.repeat(3);
   await enterPair(page, a, b);
   await page.getByLabel('Number of shuffles').fill('60');
-  await page.getByLabel('Random seed').fill('777');
+  await page.getByLabel('Random seed', { exact: true }).fill('777');
   const run = async (): Promise<string> => {
     await page.getByRole('button', { name: 'Run shuffle test' }).click();
     await page.waitForSelector('.signif-results .stat');
@@ -117,14 +117,14 @@ test('bad input is reported with positions and nothing is silently dropped; too-
   const { page } = ctx;
   await page.getByLabel('Sequence B: paste residues or FASTA').fill('ACGTACGTACGTACGT');
   await page.getByLabel('Sequence A: paste residues or FASTA').fill('ACGTACGTAC!GTACGT');
-  await page.getByLabel('Alphabet').selectOption('dna');
+  await page.locator('.view-align').getByLabel('Alphabet').selectOption('dna');
   await expect(page.locator('.seq-messages').first()).toContainText('! at 11');
-  await expect(page.locator('.status-host')).toContainText('Fix the problems');
+  await expect(page.locator('.view-align .status-host')).toContainText('Fix the problems');
   await page.getByLabel('Sequence A: paste residues or FASTA').fill('AC GT 12 acgt');
   await expect(page.locator('.seq-messages').first()).toContainText('Removed 2 digit');
   await page.getByLabel('Sequence A: paste residues or FASTA').fill('A'.repeat(6000));
   await page.getByLabel('Sequence B: paste residues or FASTA').fill('C'.repeat(6000));
-  await expect(page.locator('.status-host')).toContainText('limit is 25,010,001');
+  await expect(page.locator('.view-align .status-host')).toContainText('limit is 25,010,001');
 });
 
 test('project save, reopen, corrupted and wrong-version files', async () => {
@@ -133,7 +133,7 @@ test('project save, reopen, corrupted and wrong-version files', async () => {
   const file = path.join(dir, 'p.json');
   await enterPair(page, 'GCATGCG', 'GATTACA');
   await setLinearDna(page, 3, -2, 5);
-  await page.getByLabel('Random seed').fill('4242');
+  await page.getByLabel('Random seed', { exact: true }).fill('4242');
   await app.evaluate(({ dialog }, f) => { dialog.showSaveDialog = () => Promise.resolve({ canceled: false, filePath: f }); }, file);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('menu-action', { detail: 'save-project' })));
   await expect.poll(() => existsSync(file)).toBe(true);
@@ -145,7 +145,7 @@ test('project save, reopen, corrupted and wrong-version files', async () => {
   await app.evaluate(({ dialog }, f) => { dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [f], bookmarks: [] }); }, file);
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('menu-action', { detail: 'open-project' })));
   await expect(page.getByLabel('Sequence A: paste residues or FASTA')).toHaveValue('GCATGCG');
-  await expect(page.getByLabel('Random seed')).toHaveValue('4242');
+  await expect(page.getByLabel('Random seed', { exact: true })).toHaveValue('4242');
   await expect(page.getByLabel('Linear gap penalty')).toHaveValue('5');
 
   const bad = path.join(dir, 'bad.json');
@@ -184,9 +184,9 @@ test('exports (FASTA, CLUSTAL-style, CSV, PNG) go through the native save path',
   }
 });
 
-test('security: only 4 bridge functions, no require, traversal blocked, openExternal allowlist, strict webPreferences', async () => {
+test('security: only the 5 bridge functions, no require, traversal blocked, openExternal allowlist, strict webPreferences', async () => {
   const { page, app } = ctx;
-  expect(await page.evaluate(() => Object.keys((window as unknown as { sequenceScope: object }).sequenceScope).sort())).toEqual(['getAppInfo', 'openExternal', 'openFile', 'saveFile']);
+  expect(await page.evaluate(() => Object.keys((window as unknown as { sequenceScope: object }).sequenceScope).sort())).toEqual(['copyText', 'getAppInfo', 'openExternal', 'openFile', 'saveFile']);
   expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined');
   const statuses = await page.evaluate(async () => {
     const out: number[] = [];

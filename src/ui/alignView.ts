@@ -5,7 +5,7 @@ import type { Dp } from '../bio/pairwise';
 import { compileScoring } from '../bio/scoring';
 import type { CompiledScoring } from '../bio/scoring';
 import { alignmentToClustal, alignmentToFasta, matrixToCsv } from '../io/export';
-import { parseProject, PROJECT_FORMAT_VERSION, serializeProject } from '../io/project';
+import type { ProjectFile } from '../io/project';
 import type { AlignRequest, AlignResult, AlphabetChoice, AlignMode, MenuAction, PairwiseAlignment, ScoringSpec, WorkerReply, Alphabet } from '../shared/types';
 import { callout, card, toast } from './cards';
 import { createDetailsPanel } from './detailsPanel';
@@ -46,7 +46,7 @@ type RunState =
   | { status: 'done' };
 
 /** Builds the Align view. The shared details panel is passed in so the router can place it on the right. */
-export function createAlignView(details: DetailsPanel = createDetailsPanel()): AppView & { loadTexts(a: string, b: string): void; getContext(): { scoring: ScoringSpec; mode: AlignMode } } {
+export function createAlignView(details: DetailsPanel = createDetailsPanel()): AppView & { loadTexts(a: string, b: string): void; getContext(): { scoring: ScoringSpec; mode: AlignMode }; getInputs(): ProjectFile['align']; setInputs(i: ProjectFile['align']): void } {
   const root = el('div', 'view view-align');
   const defaults = defaultPreset('dna');
   let inputs: Inputs = { textA: '', textB: '', alphabet: 'auto', mode: 'global', scoring: defaults.scoring, seed: DEFAULT_SEED, shuffles: 200 };
@@ -283,20 +283,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   swapBtn.addEventListener('click', () => { inputs = { ...inputs, textA: inputs.textB, textB: inputs.textA }; syncUi(); history.push(inputs); execute(); });
   signif.onParamsChange(() => { const p = signif.getParams(); inputs = { ...inputs, seed: Number.isFinite(p.seed) ? Math.trunc(p.seed) : inputs.seed, shuffles: Number.isFinite(p.shuffles) ? Math.trunc(p.shuffles) : inputs.shuffles }; commitHistory(); });
 
-  // ---- project, files, shortcuts ----
-  const saveProject = async (): Promise<void> => {
-    const text = serializeProject({ app: 'SequenceScope', formatVersion: PROJECT_FORMAT_VERSION, appVersion: (await window.sequenceScope.getAppInfo()).version, savedAt: new Date().toISOString(), align: { ...inputs, seed: inputs.seed, shuffles: inputs.shuffles } });
-    await save('sequencescope-project.json', 'json', text, 'utf8');
-  };
-  const openProject = async (): Promise<void> => {
-    const r = await window.sequenceScope.openFile('project');
-    if (!r.ok) { if (r.reason !== 'cancelled') toast(r.message); return; }
-    const p = parseProject(r.text);
-    if (!p.ok) { clear(statusHost); runState = { status: 'error', message: p.message }; showStatus(); toast(p.message); return; }
-    inputs = { ...p.project.align };
-    keepScoringOnce = true;
-    syncUi(); history.push(inputs); execute(); toast(`Opened project ${r.name}.`);
-  };
+  // ---- files, shortcuts ----
   const openFasta = async (): Promise<void> => {
     const r = await window.sequenceScope.openFile('fasta');
     if (!r.ok) { if (r.reason !== 'cancelled') toast(r.message); return; }
@@ -325,10 +312,10 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     id: 'align', title: 'Align', root,
     loadTexts,
     getContext: () => ({ scoring: inputs.scoring, mode: inputs.mode }),
+    getInputs: () => ({ ...inputs }),
+    setInputs(i) { inputs = { ...i }; keepScoringOnce = true; syncUi(); history.push(inputs); execute(); },
     handleAction(a: MenuAction): boolean {
       if (a === 'open-fasta') { void openFasta(); return true; }
-      if (a === 'open-project') { void openProject(); return true; }
-      if (a === 'save-project') { void saveProject(); return true; }
       if (a === 'export') { openExport(); return true; }
       if (a === 'undo') { restore(history.undo()); return true; }
       if (a === 'redo') { restore(history.redo()); return true; }

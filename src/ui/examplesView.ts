@@ -5,7 +5,7 @@ import { loadExampleIndex, loadExampleSet, recordText, shortName } from './examp
 import type { AppView } from './view';
 
 /** Builds the Examples view; `openInAlign` switches to the Align view with the two texts loaded. */
-export function createExamplesView(openInAlign: (a: string, b: string) => void): AppView {
+export function createExamplesView(openInAlign: (a: string, b: string) => void, openInDistances: (setId: string, aligned: boolean) => void): AppView {
   const root = el('div', 'view view-examples');
   let loaded = false;
   const build = async (): Promise<void> => {
@@ -32,6 +32,18 @@ export function createExamplesView(openInAlign: (a: string, b: string) => void):
         go.addEventListener('click', () => { const ra = set.records[Number(aSel.value)]; const rb = set.records[Number(bSel.value)]; if (ra && rb) openInAlign(recordText(ra), recordText(rb)); });
         const row = el('div', 'row'); row.append(aSel, bSel, go);
         c.body.append(row);
+        if (set.records.length >= 3) {
+          const dRow = el('div', 'row');
+          const toD = el('button', 'btn', 'Open the whole set in Distances →', { type: 'button' });
+          toD.addEventListener('click', () => openInDistances(s.id, false));
+          dRow.append(toD);
+          if (s.aligned) {
+            const toDA = el('button', 'btn', 'Open the MAFFT-aligned copy in Distances →', { type: 'button' });
+            toDA.addEventListener('click', () => openInDistances(s.id, true));
+            dRow.append(toDA);
+          }
+          c.body.append(dRow);
+        }
         c.body.append(callout('info', `License: ${m.license.name}. “${m.license.quote}” Citation: ${m.citation}${m.aligned ? ` Pre-aligned copy produced with ${m.aligned.tool} ${m.aligned.version} (derived data, used from Milestone B).` : ''}`));
         root.append(c.root);
       }

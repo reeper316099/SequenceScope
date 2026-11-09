@@ -1,14 +1,14 @@
 // Electron main process: window, menu, app:// protocol, IPC handlers, and all security settings.
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isAllowedExternalUrl } from './allowlist';
 import { resolveAppPath } from './appPath';
-import { openFileRequestSchema, openExternalRequestSchema, saveFileRequestSchema, windowStateSchema } from '../src/shared/schemas';
+import { copyTextRequestSchema, openFileRequestSchema, openExternalRequestSchema, saveFileRequestSchema, windowStateSchema } from '../src/shared/schemas';
 import { IPC, MAX_OPEN_FILE_BYTES } from '../src/shared/types';
-import type { AppInfo, MenuAction, OpenExternalResult, OpenFileKind, OpenFileResult, SaveFileResult } from '../src/shared/types';
+import type { AppInfo, CopyTextResult, MenuAction, OpenExternalResult, OpenFileKind, OpenFileResult, SaveFileResult } from '../src/shared/types';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rendererRoot = path.resolve(here, '../renderer');
@@ -145,6 +145,14 @@ async function handleOpenExternal(raw: unknown): Promise<OpenExternalResult> {
   return { ok: true };
 }
 
+/** Copies validated text to the system clipboard (the renderer has no clipboard permission of its own). */
+async function handleCopyText(raw: unknown): Promise<CopyTextResult> {
+  const parsed = copyTextRequestSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, message: 'Nothing to copy, or the text is larger than 5 MB.' };
+  await clipboard.writeText(parsed.data);
+  return { ok: true };
+}
+
 /** Reads the saved window size/position (validated), falling back to defaults. */
 async function loadWindowState(file: string): Promise<{ width: number; height: number; x?: number; y?: number; maximized?: boolean }> {
   try {
@@ -241,6 +249,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle(IPC.openFile, (_e, kind: unknown) => handleOpenFile(kind));
     ipcMain.handle(IPC.saveFile, (_e, req: unknown) => handleSaveFile(req));
     ipcMain.handle(IPC.openExternal, (_e, url: unknown) => handleOpenExternal(url));
+    ipcMain.handle(IPC.copyText, (_e, text: unknown) => handleCopyText(text));
     ipcMain.handle(IPC.getAppInfo, (): AppInfo => ({
       name: app.getName(), version: app.getVersion(), electron: process.versions.electron,
       chrome: process.versions.chrome, platform: process.platform,

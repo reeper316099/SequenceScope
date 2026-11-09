@@ -9,6 +9,11 @@ import { createAlignView } from './ui/alignView';
 import { toast } from './ui/cards';
 import { createComingSoonView } from './ui/comingSoonView';
 import { createDetailsPanel } from './ui/detailsPanel';
+import { DataStore } from './ui/dataStore';
+import { createDistancesView } from './ui/distancesView';
+import { createTreesView } from './ui/treesView';
+import { loadExampleText } from './ui/examples';
+import { parseProject, PROJECT_FORMAT_VERSION, serializeProject } from './io/project';
 import { el } from './ui/dom';
 import { createExamplesView } from './ui/examplesView';
 import { createLearnView } from './ui/learnView';
@@ -29,12 +34,15 @@ function main(): void {
 
   const details = createDetailsPanel();
   const align = createAlignView(details);
+  const store = new DataStore();
+  const distances = createDistancesView(store, () => show(2));
+  const trees = createTreesView(store);
   const views: AppView[] = [
     align,
-    createComingSoonView('distances', 'Distances', 'Milestone B', 'Pairwise-alignment-based distance matrices with Jukes–Cantor and Poisson corrections and a heatmap.'),
-    createComingSoonView('trees', 'Trees', 'Milestone B', 'UPGMA and neighbor-joining with step-through, a tree viewer, Newick import/export, tree comparison, and bootstrap support for aligned input.'),
+    distances,
+    trees,
     createComingSoonView('msa', 'MSA', 'Milestone C', 'Progressive multiple sequence alignment with conservation and bootstrap trees from the app’s own alignments.'),
-    createExamplesView((a, b) => { show(0); align.loadTexts(a, b); }),
+    createExamplesView((a, b) => { show(0); align.loadTexts(a, b); }, (setId, aligned) => { void loadExampleText(setId, aligned).then((t) => { store.update({ alphabetChoice: 'auto' }); distances.loadText(t, aligned ? 'aligned' : 'unaligned'); show(1); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.')); }),
     createLearnView(() => align.getContext()),
     createAboutView(),
   ];
@@ -89,15 +97,46 @@ function main(): void {
   themeBtn.addEventListener('click', () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark'));
   display(0);
 
+  /** Saves the whole project (alignment inputs + distances/trees state) through the native dialog. */
+  const saveProject = async (): Promise<void> => {
+    const info = await window.sequenceScope.getAppInfo();
+    const st = store.state;
+    const ts = trees.getState();
+    const text = serializeProject({
+      app: 'SequenceScope', formatVersion: PROJECT_FORMAT_VERSION, appVersion: info.version, savedAt: new Date().toISOString(), align: align.getInputs(),
+      trees: { text: st.text, alphabet: st.alphabetChoice, mode: st.modeChoice, model: st.model, gapPolicy: st.gapPolicy, presetId: st.presetId, method: ts.method, seed: ts.seed, replicates: ts.replicates, importedNewick: ts.importedNewick },
+    });
+    const r = await window.sequenceScope.saveFile({ suggestedName: 'sequencescope-project.json', extensions: ['json'], content: text, encoding: 'utf8' });
+    if (r.ok) toast(`Saved ${r.path}`); else if (r.reason !== 'cancelled') toast(r.message);
+  };
+  /** Opens a project; corrupted or newer files give a friendly message and change nothing. */
+  const openProject = async (): Promise<void> => {
+    const r = await window.sequenceScope.openFile('project');
+    if (!r.ok) { if (r.reason !== 'cancelled') toast(r.message); return; }
+    const p = parseProject(r.text);
+    if (!p.ok) { toast(p.message); return; }
+    align.setInputs(p.project.align);
+    const t = p.project.trees;
+    if (t) {
+      store.update({ alphabetChoice: t.alphabet, model: t.model, gapPolicy: t.gapPolicy, presetId: t.presetId });
+      distances.loadText(t.text, t.mode);
+      trees.setState({ method: t.method, seed: t.seed, replicates: t.replicates, importedNewick: t.importedNewick });
+    }
+    toast(`Opened project ${r.name}.`);
+  };
+
   window.addEventListener('menu-action', (e) => {
     const action = (e as CustomEvent<unknown>).detail;
     if (typeof action !== 'string' || !(MENU_ACTIONS as readonly string[]).includes(action)) return;
     const a = action as MenuAction; // safe: membership in MENU_ACTIONS was just checked
     if (a === 'toggle-dark') { setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); return; }
     if (a.startsWith('view-')) { const n = Number(a.slice(5)) - 1; if (n >= 0 && n < views.length) show(n); return; }
-    if (a === 'open-newick') { toast('Newick import arrives with Milestone B (the Trees view).'); return; }
-    // File, save and export commands belong to the Align view (the only one with data so far): switch to it first.
-    if (['open-fasta', 'open-project', 'save-project', 'export'].includes(a) && (stack[pos] ?? 0) !== 0) show(0);
+    if (a === 'save-project') { void saveProject(); return; }
+    if (a === 'open-project') { void openProject(); return; }
+    if (a === 'open-newick') { show(2); trees.handleAction?.(a); return; }
+    const active = stack[pos] ?? 0;
+    if (a === 'open-fasta' && (active === 1 || active === 2)) { show(1); distances.handleAction?.(a); return; }
+    if ((a === 'open-fasta' || a === 'export') && active !== 0 && active !== 2) show(0);
     const view = views[stack[pos] ?? 0];
     if (!(view?.handleAction?.(a) ?? false)) toast('That command is not available in this view.');
   });

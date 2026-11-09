@@ -56,3 +56,10 @@ export function shortName(r: Sequence): string {
 export function recordText(r: Sequence): string {
   return `>${r.id} ${r.description}\n${r.residues}`.trim();
 }
+
+/** Raw FASTA text of a bundled set (aligned = the MAFFT-aligned copy, only for sets that have one). */
+export async function loadExampleText(id: string, aligned: boolean): Promise<string> {
+  const r = await fetch(`/examples/${id}/${aligned ? 'aligned.fasta' : 'sequences.fasta'}`);
+  if (!r.ok) throw new Error(`Could not load ${aligned ? 'the aligned copy of ' : ''}${id}.`);
+  return r.text();
+}

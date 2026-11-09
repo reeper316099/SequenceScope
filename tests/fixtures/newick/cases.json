@@ -1,0 +1,29 @@
+{
+  "good": [
+    { "id": "simple", "text": "(A,B,(C,D));", "leaves": ["A", "B", "C", "D"] },
+    { "id": "lengths", "text": "(A:0.1,B:0.2,(C:0.3,D:0.4):0.5);", "leaves": ["A", "B", "C", "D"] },
+    { "id": "scientific", "text": "(A:1e-3,B:2.5E+2,(C:-1.5e-2,D:.5):3.);", "leaves": ["A", "B", "C", "D"] },
+    { "id": "quoted-with-parens-and-spaces", "text": "('Homo sapiens (human)':1,'it''s':2,(C,D));", "leaves": ["Homo sapiens (human)", "it's", "C", "D"] },
+    { "id": "internal-labels-and-support", "text": "((A:1,B:1)95:0.5,(C:1,D:1)clade_x:0.5,E:2)root;", "leaves": ["A", "B", "C", "D", "E"] },
+    { "id": "comments-and-whitespace", "text": "  ( A [comment] : 1 ,\n B : 2 , ( C , D ) ) ;  ", "leaves": ["A", "B", "C", "D"] },
+    { "id": "rooted-two-children", "text": "((A,B),(C,D));", "leaves": ["A", "B", "C", "D"] },
+    { "id": "missing-lengths-mixed", "text": "(A:1,B,(C:2,D));", "leaves": ["A", "B", "C", "D"] },
+    { "id": "underscore-ids", "text": "(HBA_HUMAN:0.01,HBA_PANTR:0.02,(HBA_MOUSE:0.2,HBA_RAT:0.1):0.05);", "leaves": ["HBA_HUMAN", "HBA_PANTR", "HBA_MOUSE", "HBA_RAT"] },
+    { "id": "numeric-leaf-names", "text": "(1,2,(3,4));", "leaves": ["1", "2", "3", "4"] },
+    { "id": "two-trees-in-file", "text": "(A,B,C);(A,C,B);", "leaves": ["A", "B", "C"], "extraTrees": 1 }
+  ],
+  "bad": [
+    { "id": "empty", "text": "", "contains": "empty", "line": 1, "column": 1 },
+    { "id": "only-whitespace", "text": "  \n ", "contains": "empty" },
+    { "id": "missing-semicolon", "text": "(A,B,C)", "contains": "Missing \";\"" },
+    { "id": "unbalanced-open", "text": "((A,B,C);", "contains": "Expected" },
+    { "id": "unbalanced-never-closed", "text": "(A,B,(C,D)", "contains": "Unbalanced" },
+    { "id": "extra-close", "text": "(A,B));", "contains": "Expected \";\"", "line": 1, "column": 6 },
+    { "id": "empty-leaf-name", "text": "(A,,C);", "contains": "taxon name", "line": 1, "column": 4 },
+    { "id": "bad-length", "text": "(A:x,B,C);", "contains": "branch length", "line": 1, "column": 4 },
+    { "id": "unterminated-quote", "text": "('abc,B,C);", "contains": "Unterminated quoted label", "line": 1, "column": 2 },
+    { "id": "unterminated-comment", "text": "(A,B,C)[oops;", "contains": "Unterminated [comment]" },
+    { "id": "garbage-after", "text": "(A,B,C); garbage", "contains": "Missing \";\"" },
+    { "id": "error-on-second-line", "text": "(A,B,\n(C,D),\n:);", "contains": "taxon name", "line": 3, "column": 1 }
+  ]
+}

@@ -1,6 +1,6 @@
 # ALGORITHMS.md — recurrences, conventions, and how each was checked
 
-Status: **Phase 3 (pairwise core implemented and tested).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
+Status: **Milestone B core added (sections 15-17).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
 decisions that get their tests in later phases. Nothing here is "from memory without a check".
 
 ## 0. Notation
@@ -89,3 +89,19 @@ Shuffle one sequence N times (composition preserved, seeded PRNG), re-align, the
 - **Global co-optimal counts:** equal to Biopython's in all 21 reference cases where neither side hit the 1000 cap; unique-optimum rows are string-identical in all 9 such cases.
 - **Speed (plain Node/V8, 2026-11-08, M-series Mac):** protein 5000x5000 with traceback: linear 260 ms, affine 599 ms (448 MB RSS); 2000x2000 affine 97 ms; 1000 shuffles of a 300x300 local affine score-only alignment: 1.4 s. (Under Vitest the same code is 4-7x slower because of its module transform; this is not representative of the app.)
 - **Mutation check:** deliberately breaking the DP (affine extension cost; linear border initialisation) makes the brute-force test fail (7 and 5 failures); changing `pb <= 0` to `pb < 0` in the local start rule changes no score (equivalent mutant: only the pointer set differs).
+
+## 15. Distances, UPGMA, NJ, trees: implementation notes and verified facts (Milestone B)
+- **Distance policy as built:** columns with a gap in BOTH sequences never count. Pairwise deletion skips a column with a gap in either; gaps-as-differences counts gap-vs-residue as a difference. Ambiguity codes (N, X, B, Z, ...) are skipped for that pair. A pair with no comparable sites is `undefined`; p at or above the JC (3/4) or Poisson (1) limit is `saturated`. Neither ever becomes NaN/Infinity; tree building refuses such matrices with a message naming the pairs.
+- **Biopython cross-check of p-distance:** on the two MAFFT-aligned example sets our `gaps-as-differences` p equals Biopython's `identity` distance exactly (to 1e-9) once Biopython's convention is accounted for: it counts columns where both sequences have a gap as identical matches, we skip them. This is the only difference (largest raw difference 0.0032 in the globin set).
+- **Biopython's `upgma()` is not UPGMA.** Its source averages the two old distances without cluster-size weights (`(dm[min_i,k] + dm[min_j,k]) / 2`), which is WPGMA. On every non-ultrametric reference matrix our UPGMA differs from Biopython's but equals SciPy's `linkage(method='average')` (true UPGMA, version recorded in `upgma_scipy.json`) in rooted clades and total length; an independent unweighted-average reference reproduces Biopython's trees exactly; on the ultrametric matrix all three agree. Tie-breaking also differs (Biopython takes the LAST minimal pair, we take the first).
+- **NJ matches Biopython's neighbor-joining exactly** on all 6 reference matrices (same splits, total length within 1e-9, including the negative branch of the noisy matrices). Per-edge lengths are compared at 6e-6 only because Biopython's Newick text has 5 decimals.
+- **Ties:** UPGMA and NJ take the first minimal pair in scan order (clusters in creation order: leaves in input order, merged clusters appended). On the Wikipedia NJ example the article's tie at step 2 (u-c vs d-e, Q = -28) resolves to u-c, as in the article.
+- **Exact recovery (200 random trees each, 3-14 taxa; plus 40 taxa for NJ):** UPGMA recovers random ultrametric trees (same rooted clades, same branch lengths to 1e-9); NJ recovers random additive trees (RF = 0, same branch lengths to 1e-9).
+- **Rooting:** a rooted-form root (2 children) is dissolved when re-rooting; the new root splits the chosen branch (default in the middle). Support values belong to branches, so both halves of a split branch carry the same value. Midpoint rooting ties are broken by the lexicographically smallest leaf pair; it assumes non-negative lengths.
+- **Newick conventions as built:** unquoted underscores are kept; a numeric unquoted internal label is read as support; a quoted numeric label stays a label; only the first tree of a multi-tree file is used; nesting deeper than 3000 levels is refused.
+
+## 16. Bootstrap as built
+Replicate r draws its columns from its own stream `deriveSeed(seed, r)`; `bootstrapRange` computes any slice and `mergeBootstrap` adds slices, so supports are identical for 1, 2, 3 or 7 workers in any order (tested). Replicates whose resampled matrix has saturated or undefined pairs are counted as FAILED and as not containing any split (support is always count / total replicates); the number of failures is reported. Caps: 100 sequences, 50,000 columns, 1000 replicates, 5e9 column comparisons.
+
+## 17. Caps (Milestone B)
+100 sequences per set; pairwise-alignment distances limited to 1.5e9 cell updates in total (every pair aligned globally); bootstrap as above.

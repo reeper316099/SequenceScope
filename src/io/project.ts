@@ -27,6 +27,21 @@ export const projectSchema = z.object({
     seed: z.number().int().min(0).max(4294967295),
     shuffles: z.number().int().min(1).max(5000),
   }),
+  /** Distances + Trees state (Milestone B); absent in files saved by Milestone A. */
+  trees: z
+    .object({
+      text: z.string().max(MAX_TEXT),
+      alphabet: z.enum(['auto', 'dna', 'rna', 'protein']),
+      mode: z.enum(['auto', 'aligned', 'unaligned']),
+      model: z.enum(['p', 'jc', 'poisson']),
+      gapPolicy: z.enum(['pairwise-deletion', 'gaps-as-differences']),
+      presetId: z.string().max(40),
+      method: z.enum(['upgma', 'nj']),
+      seed: z.number().int().min(0).max(4294967295),
+      replicates: z.number().int().min(1).max(1000),
+      importedNewick: z.string().max(MAX_TEXT).nullable(),
+    })
+    .optional(),
 });
 export type ProjectFile = z.infer<typeof projectSchema>;
 

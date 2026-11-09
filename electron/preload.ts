@@ -8,6 +8,7 @@ const api: SequenceScopeApi = {
   saveFile: (request: SaveFileRequest) => ipcRenderer.invoke(IPC.saveFile, request) as ReturnType<SequenceScopeApi['saveFile']>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as ReturnType<SequenceScopeApi['openExternal']>,
   getAppInfo: () => ipcRenderer.invoke(IPC.getAppInfo) as ReturnType<SequenceScopeApi['getAppInfo']>,
+  copyText: (text: string) => ipcRenderer.invoke(IPC.copyText, text) as ReturnType<SequenceScopeApi['copyText']>,
 };
 
 contextBridge.exposeInMainWorld('sequenceScope', api);

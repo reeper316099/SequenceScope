@@ -6,6 +6,7 @@ import type { AlignMode, ScoringSpec } from '../shared/types';
 import { callout, card } from './cards';
 import { clear, el, mml } from './dom';
 import { pathCells } from './matrixGeometry';
+import { treeLessonCards } from './learnTrees';
 import { analyzeSequenceText } from './model';
 import type { AppView } from './view';
 
@@ -156,7 +157,7 @@ export function createLearnView(getContext: () => { scoring: ScoringSpec; mode: 
     c6.body.append(prose('The filled table only holds scores. To recover the alignment itself, start at the answer cell and repeatedly ask “which neighbour did this value come from?”. Each choice is one alignment column: diagonal = two letters paired, up = a letter of A against a gap, left = a letter of B against a gap. When two choices tie, the app prefers diagonal, then up, then left, so the result is always the same; the Alignment card can also list all tied (co-optimal) alignments. Because the table stores only the best score for each pair of prefixes, this takes time proportional to (length of A) × (length of B) instead of trying every possible alignment.'));
     c6.body.append(callout('warn', 'A high alignment score or identity percentage does not by itself prove two sequences are related. Use the shuffle check in the Align view, and remember that real searches (BLAST) use proper statistics.'));
 
-    dynamic.append(c1.root, c2.root, c3.root, c4.root, c5.root, c6.root);
+    dynamic.append(c1.root, c2.root, c3.root, c4.root, c5.root, c6.root, ...treeLessonCards());
   };
 
   build();

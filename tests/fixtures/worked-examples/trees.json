@@ -1,0 +1,32 @@
+{
+  "note": "Worked examples from Wikipedia (accessed 2026-11-08). 'expected' values are what the article states.",
+  "upgma": {
+    "source": "Wikipedia, 'UPGMA', worked example",
+    "url": "https://en.wikipedia.org/wiki/UPGMA",
+    "names": ["a", "b", "c", "d", "e"],
+    "matrix": [[0, 17, 21, 31, 23], [17, 0, 30, 34, 21], [21, 30, 0, 28, 39], [31, 34, 28, 0, 43], [23, 21, 39, 43, 0]],
+    "merges": [
+      { "pair": ["a", "b"], "distance": 17, "height": 8.5 },
+      { "pair": ["u", "e"], "distance": 22, "height": 11 },
+      { "pair": ["c", "d"], "distance": 28, "height": 14 },
+      { "pair": ["v", "w"], "distance": 33, "height": 16.5 }
+    ],
+    "branchLengths": { "a": 8.5, "b": 8.5, "u-v": 2.5, "e": 11, "v-r": 5.5, "c": 14, "d": 14, "w-r": 2.5 },
+    "clades": ["a,b", "a,b,e", "c,d"]
+  },
+  "nj": {
+    "source": "Wikipedia, 'Neighbor joining', worked example (an idealised additive case)",
+    "url": "https://en.wikipedia.org/wiki/Neighbor_joining",
+    "names": ["a", "b", "c", "d", "e"],
+    "matrix": [[0, 5, 9, 9, 8], [5, 0, 10, 10, 9], [9, 10, 0, 8, 7], [9, 10, 8, 0, 3], [8, 9, 7, 3, 0]],
+    "firstQ": { "a,b": -50, "a,c": -38, "a,d": -34, "a,e": -34, "b,c": -38, "b,d": -34, "b,e": -34, "c,d": -40, "c,e": -40, "d,e": -48 },
+    "firstJoin": ["a", "b"],
+    "firstBranches": { "a": 2, "b": 3 },
+    "afterFirstJoin": { "u,c": 7, "u,d": 7, "u,e": 6, "c,d": 8, "c,e": 7, "d,e": 3 },
+    "secondMinQ": -28,
+    "secondJoin": ["u", "c"],
+    "secondBranches": { "u": 3, "c": 4 },
+    "finalBranches": { "v-w": 2, "d": 2, "e": 1 },
+    "finalSplits": ["a,b", "a,b,c"]
+  }
+}
