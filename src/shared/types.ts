@@ -94,3 +94,36 @@ export type MenuAction = (typeof MENU_ACTIONS)[number];
 
 /** Hard size cap for files opened through the native dialog (checked in the main process). */
 export const MAX_OPEN_FILE_BYTES = 10 * 1024 * 1024;
+
+// ---- Bio domain types shared by src/bio, workers, UI, and project files ----
+
+/** Alignment mode: whole-sequence (global) or best-matching region (local). */
+export type AlignMode = 'global' | 'local';
+
+/** Gap penalties are entered as POSITIVE numbers. Linear: k gaps cost k*gap. Affine: k gaps cost open + (k-1)*extend. */
+export type GapModel = { kind: 'linear'; gap: number } | { kind: 'affine'; open: number; extend: number };
+
+/** How residue pairs are scored: simple match/mismatch (DNA/RNA/protein) or a named substitution matrix (protein). */
+export type SubstitutionSpec = { kind: 'simple'; match: number; mismatch: number } | { kind: 'matrix'; name: string };
+
+/** Serializable scoring choice (what goes into worker messages and project files). */
+export interface ScoringSpec {
+  substitution: SubstitutionSpec;
+  gaps: GapModel;
+}
+
+/** One pairwise alignment. Coordinates are 0-based, half-open, on the ORIGINAL (ungapped) sequences. */
+export interface PairwiseAlignment {
+  mode: AlignMode;
+  score: number;
+  rowA: string;
+  rowB: string;
+  startA: number;
+  endA: number;
+  startB: number;
+  endB: number;
+}
+
+/** Typed error codes thrown by the bio modules (never silent garbage). */
+export type BioErrorCode =
+  | 'too-large' | 'invalid-residue' | 'invalid-scoring' | 'invalid-argument' | 'unknown-matrix' | 'alphabet-mismatch';

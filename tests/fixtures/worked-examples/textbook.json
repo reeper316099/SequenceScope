@@ -1,0 +1,46 @@
+{
+  "note": "Worked examples copied from public sources; the 'expected' values are what the SOURCE states. Accessed 2026-11-08. These are web sources (Rosalind, Wikipedia), not printed textbooks; no printed textbook example was checked in this phase.",
+  "examples": [
+    {
+      "id": "rosalind-glob",
+      "source": "Rosalind problem GLOB, 'Global Alignment with Scoring Matrix' sample dataset",
+      "url": "https://rosalind.info/problems/glob/",
+      "mode": "global", "alphabet": "protein", "matrix": "BLOSUM62",
+      "gaps": { "kind": "linear", "gap": 5 },
+      "a": "PLEASANTLY", "b": "MEANLY",
+      "expectedScore": 8,
+      "sourceStatesAlignment": false
+    },
+    {
+      "id": "rosalind-gaff",
+      "source": "Rosalind problem GAFF, 'Global Alignment with Scoring Matrix and Affine Gap Penalty' sample dataset (gap of length k costs 11 + (k-1))",
+      "url": "https://rosalind.info/problems/gaff/",
+      "mode": "global", "alphabet": "protein", "matrix": "BLOSUM62",
+      "gaps": { "kind": "affine", "open": 11, "extend": 1 },
+      "a": "PRTEINS", "b": "PRTWPSEIN",
+      "expectedScore": 8,
+      "sourceAlignment": ["PRT---EINS", "PRTWPSEIN-"]
+    },
+    {
+      "id": "wikipedia-needleman-wunsch",
+      "source": "Wikipedia, 'Needleman-Wunsch algorithm': match +1, mismatch -1, indel -1; article states the alignment score is 0",
+      "url": "https://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm",
+      "mode": "global", "alphabet": "dna", "match": 1, "mismatch": -1,
+      "gaps": { "kind": "linear", "gap": 1 },
+      "a": "GCATGCG", "b": "GATTACA",
+      "expectedScore": 0,
+      "sourceAlignments": [["GCATG-CG", "G-ATTACA"], ["GCAT-GCG", "G-ATTACA"]]
+    },
+    {
+      "id": "wikipedia-smith-waterman",
+      "source": "Wikipedia, 'Smith-Waterman algorithm': match +3, mismatch -3, linear gap 2 per position; article gives the best local alignment but NOT a numeric score (13 is derived here from the stated parameters: 5 matches x 3 - 1 gap x 2)",
+      "url": "https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm",
+      "mode": "local", "alphabet": "dna", "match": 3, "mismatch": -3,
+      "gaps": { "kind": "linear", "gap": 2 },
+      "a": "TGTTACGG", "b": "GGTTGACTA",
+      "expectedScore": 13,
+      "scoreStatedBySource": false,
+      "sourceAlignment": ["GTT-AC", "GTTGAC"]
+    }
+  ]
+}

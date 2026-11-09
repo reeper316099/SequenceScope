@@ -1,6 +1,6 @@
 # ALGORITHMS.md — recurrences, conventions, and how each was checked
 
-Status: **Phase 1 draft.** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
+Status: **Phase 3 (pairwise core implemented and tested).** Everything marked ✔ was checked by running code on 2026-11-08; items marked ◻ are
 decisions that get their tests in later phases. Nothing here is "from memory without a check".
 
 ## 0. Notation
@@ -30,7 +30,7 @@ Y[i][j] = max( max(M,X)[i][j-1] − open,  Y[i][j-1] − extend )
 
 ## 3. Traceback, ties, co-optimal alignments
 - **Preference order (deterministic):** diagonal, then up (gap in b), then left (gap in a). For affine, when leaving a state prefer `M`, then `X`, then `Y`. Local start cell: first maximum in row-major order.
-- Optional enumeration of all co-optimal alignments by DFS over all tied predecessors, **hard cap 1000** (the reference generator uses the same cap and records when it was hit). Local enumeration also enumerates tied start cells.
+- Optional enumeration of all co-optimal alignments by iterative DFS over all tied predecessors, **hard cap 1000** (`alignAll`; the first one always equals `align`) (the reference generator uses the same cap and records when it was hit). Local enumeration also enumerates tied start cells.
 - Biopython's tie-breaking differs → cross-check compares **scores exactly** and checks our alignment is *valid* (re-scores to the reported score; gap-free rows equal the input, or the aligned substring for local). Strings are compared only when the optimum is unique (✔ 21 of 44 reference cases have a unique optimum).
 
 ## 4. Ambiguity codes and special characters
@@ -81,3 +81,11 @@ Shuffle one sequence N times (composition preserved, seeded PRNG), re-align, the
 
 ## 13. PRNG
 `sfc32` or `xoshiro128**` (32-bit state words, integer-only so results are identical on every platform), seeded via `splitmix32`. Known-answer test of the first outputs for fixed seeds. No `Math.random()` anywhere (lint rule).
+
+## 14. Implementation notes and measured facts (Phase 3)
+- **Size cap:** `(m+1)*(n+1) <= 5001*5001 = 25,010,001` cells (two 5,000-residue sequences). Memory: linear 5 B/cell (~125 MB), affine 14 B/cell (~350 MB). Larger requests throw `BioError('too-large')` before anything is allocated.
+- **Integer scoring only** (match/mismatch in [-1000, 1000], gap penalties in [0, 10000]) so scores fit `Int32Array` exactly; "minus infinity" is -1e9 and every stored value is clamped so it cannot overflow.
+- **Local alignments are reported in minimal form** (no zero-scoring prefix; traceback stops at a zero cell). Enumeration also lists alignments ending at every tied maximum cell. On 20 Biopython local reference cases with positive score, our co-optimal count equals Biopython's in 18; in 2 (case021, case027) we enumerate MORE (ties that extend to the sequence ends at the same score; each independently re-scores to the optimal score). Scores are equal in all 20.
+- **Global co-optimal counts:** equal to Biopython's in all 21 reference cases where neither side hit the 1000 cap; unique-optimum rows are string-identical in all 9 such cases.
+- **Speed (plain Node/V8, 2026-11-08, M-series Mac):** protein 5000x5000 with traceback: linear 260 ms, affine 599 ms (448 MB RSS); 2000x2000 affine 97 ms; 1000 shuffles of a 300x300 local affine score-only alignment: 1.4 s. (Under Vitest the same code is 4-7x slower because of its module transform; this is not representative of the app.)
+- **Mutation check:** deliberately breaking the DP (affine extension cost; linear border initialisation) makes the brute-force test fail (7 and 5 failures); changing `pb <= 0` to `pb < 0` in the local start rule changes no score (equivalent mutant: only the pointer set differs).

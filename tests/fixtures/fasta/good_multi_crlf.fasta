@@ -1,0 +1,7 @@
+>seq1 first sequence
+ACGTACGTAC
+GTACGTACGT
+
+>seq2 lower and digits
+acgtacgtac 10
+gtacg1tacgt 20
