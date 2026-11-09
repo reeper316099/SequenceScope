@@ -2,6 +2,8 @@
 
 **An interactive desktop lab for learning how biological sequences are lined up and how evolutionary trees are built — with every algorithm written from scratch and proved correct by tests.** Align two sequences and watch the score matrix fill and the traceback find the alignment; turn many sequences into a distance heatmap, a UPGMA or neighbor-joining tree, and bootstrap support; align a whole family with a progressive multiple aligner. It is an *educational* tool for Windows, macOS and Linux (Electron + TypeScript) and makes **no network requests**.
 
+![Watching the score matrix fill cell by cell, then the traceback finding the alignment](docs/demo.gif)
+
 ![Align view](docs/screenshots/align-light.png)
 
 | Trees | Multiple alignment | Learn |

@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an improvement or a new teaching feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to learn or do?
+      description: Describe the teaching or usability problem, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+  - type: textarea
+    id: scope
+    attributes:
+      label: Fit with the project
+      description: SequenceScope is an educational tool and does not aim to replace BLAST, MAFFT or ML phylogenetics software. How does this fit that scope?
