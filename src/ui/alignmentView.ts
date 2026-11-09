@@ -35,10 +35,12 @@ export function createAlignmentView(onPick: (aln: PairwiseAlignment) => void): A
   const body = el('div', 'aln-body mono', undefined, { role: 'region', 'aria-label': 'Alignment', tabindex: 0 });
   const legend = el('div', 'aln-legend');
   const empty = el('p', 'hint', 'The alignment appears here.');
-  root.append(nav, body, legend, empty);
+  const progressNote = el('p', 'hint', '', { 'aria-live': 'polite' });
+  root.append(nav, body, progressNote, legend, empty);
 
   let data: AlignmentViewData | null = null;
   let index = 0;
+  let renderToken = 0;
 
   /** Characters per line that fit in the current width. */
   const perLine = (): number => {
@@ -61,6 +63,7 @@ export function createAlignmentView(onPick: (aln: PairwiseAlignment) => void): A
   };
 
   const render = (): void => {
+    renderToken++; // cancels any batch of an older render still in progress
     clear(body);
     const aln = data?.all[index];
     empty.hidden = data !== null && aln !== undefined;
@@ -73,37 +76,48 @@ export function createAlignmentView(onPick: (aln: PairwiseAlignment) => void): A
     if (aln.rowA.length === 0) { body.append(el('p', 'hint', 'No positive-scoring local alignment exists for these sequences and scores (best local score is 0).')); return; }
     const cols = perLine();
     const mline = matchLine(aln, data.scoring);
+    const alphabet = data.alphabet;
+    const total = Math.ceil(aln.rowA.length / cols);
+    const myRender = renderToken;
     let ia = aln.startA; let ib = aln.startB;
-    for (let s = 0; s < aln.rowA.length; s += cols) {
-      const block = el('div', 'aln-block');
-      const slice = (row: string): string => row.slice(s, s + cols);
-      const a = slice(aln.rowA); const b = slice(aln.rowB); const m = slice(mline);
-      const startA = ia + 1; const startB = ib + 1;
-      for (const ch of a) if (ch !== '-') ia++;
-      for (const ch of b) if (ch !== '-') ib++;
-      const ruler = el('div', 'aln-line ruler');
-      ruler.append(el('span', 'aln-label', '', {}));
-      // place numbers so that each ends at its column
-      const rulerChars = Array.from({ length: a.length }, () => ' ');
-      for (let k = 0; k < a.length; k++) {
-        const col = s + k + 1;
-        if (col % 10 === 0) { const t = String(col); for (let q = 0; q < t.length; q++) { const pos = k - (t.length - 1) + q; if (pos >= 0) rulerChars[pos] = t.charAt(q); } }
+    let s = 0;
+    /** Renders a few blocks, then yields to the browser so very long alignments never freeze the UI. */
+    const batch = (): void => {
+      if (myRender !== renderToken) return; // a newer render replaced this one
+      const stop = Math.min(aln.rowA.length, s + 12 * cols);
+      for (; s < stop; s += cols) {
+        const block = el('div', 'aln-block');
+        const slice = (row: string): string => row.slice(s, s + cols);
+        const a = slice(aln.rowA); const b = slice(aln.rowB); const m = slice(mline);
+        const startA = ia + 1; const startB = ib + 1;
+        for (const ch of a) if (ch !== '-') ia++;
+        for (const ch of b) if (ch !== '-') ib++;
+        const ruler = el('div', 'aln-line ruler');
+        ruler.append(el('span', 'aln-label', '', {}));
+        const rulerChars = Array.from({ length: a.length }, () => ' ');
+        for (let k = 0; k < a.length; k++) {
+          const col = s + k + 1;
+          if (col % 10 === 0) { const t = String(col); for (let q = 0; q < t.length; q++) { const pos = k - (t.length - 1) + q; if (pos >= 0) rulerChars[pos] = t.charAt(q); } }
+        }
+        ruler.append(el('span', 'aln-seq', rulerChars.join('')));
+        const line = (label: string, text: string, end: string, residues: boolean): HTMLElement => {
+          const d = el('div', 'aln-line');
+          d.append(el('span', 'aln-label', label));
+          const seq = el('span', 'aln-seq');
+          for (const ch of text) seq.append(el('span', residues ? `res ${residueClass(ch, alphabet)}` : 'res', ch === ' ' ? ' ' : ch));
+          d.append(seq, el('span', 'aln-end', end));
+          return d;
+        };
+        block.append(ruler,
+          line(`A ${String(startA).padStart(5)}`, a, String(ia), true),
+          line('', m, '', false),
+          line(`B ${String(startB).padStart(5)}`, b, String(ib), true));
+        body.append(block);
       }
-      ruler.append(el('span', 'aln-seq', rulerChars.join('')));
-      const line = (label: string, text: string, end: string, residues: boolean): HTMLElement => {
-        const d = el('div', 'aln-line');
-        d.append(el('span', 'aln-label', label));
-        const seq = el('span', 'aln-seq');
-        for (const ch of text) seq.append(el('span', residues ? `res ${residueClass(ch, data?.alphabet ?? 'dna')}` : 'res', ch === ' ' ? ' ' : ch));
-        d.append(seq, el('span', 'aln-end', end));
-        return d;
-      };
-      block.append(ruler,
-        line(`A ${String(startA).padStart(5)}`, a, String(ia), true),
-        line('', m, '', false),
-        line(`B ${String(startB).padStart(5)}`, b, String(ib), true));
-      body.append(block);
-    }
+      if (s < aln.rowA.length) { progressNote.textContent = `Rendering… ${Math.round((s / aln.rowA.length) * 100)} % of ${total} blocks`; setTimeout(batch, 0); }
+      else progressNote.textContent = '';
+    };
+    batch();
   };
 
   prev.addEventListener('click', () => { if (data && index > 0) { index--; render(); const a = data.all[index]; if (a) onPick(a); } });

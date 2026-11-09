@@ -1,0 +1,87 @@
+{
+ "biopython": "1.86",
+ "seed": 1794192888,
+ "alignments": [
+  {
+   "id": "aln0",
+   "mode": "global",
+   "alphabet": "dna",
+   "app_score": 46,
+   "biopython_score": 46.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  },
+  {
+   "id": "aln1",
+   "mode": "global",
+   "alphabet": "dna",
+   "app_score": 17,
+   "biopython_score": 17.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  },
+  {
+   "id": "aln2",
+   "mode": "local",
+   "alphabet": "dna",
+   "app_score": 51,
+   "biopython_score": 51.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  },
+  {
+   "id": "aln3",
+   "mode": "global",
+   "alphabet": "protein",
+   "app_score": 168,
+   "biopython_score": 168.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  },
+  {
+   "id": "aln4",
+   "mode": "local",
+   "alphabet": "protein",
+   "app_score": 384,
+   "biopython_score": 384.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  },
+  {
+   "id": "aln5",
+   "mode": "global",
+   "alphabet": "protein",
+   "app_score": -57,
+   "biopython_score": -57.0,
+   "abs_diff": 0.0,
+   "alignment_valid": true
+  }
+ ],
+ "nj": [
+  {
+   "id": "set0",
+   "taxa": 6,
+   "rf": 0,
+   "app_total_length": 0.21483333333333332,
+   "biopython_total_length": 0.21482999999999997,
+   "abs_length_diff": 3.3333333333551707e-06
+  },
+  {
+   "id": "set1",
+   "taxa": 8,
+   "rf": 0,
+   "app_total_length": 0.36049479166666665,
+   "biopython_total_length": 0.36050000000000004,
+   "abs_length_diff": 5.20833333339521e-06
+  },
+  {
+   "id": "set2",
+   "taxa": 10,
+   "rf": 0,
+   "app_total_length": 0.5201979166666667,
+   "biopython_total_length": 0.5201899999999999,
+   "abs_length_diff": 7.916666666774042e-06
+  }
+ ],
+ "max_score_difference": 0.0
+}

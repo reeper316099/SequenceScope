@@ -89,10 +89,23 @@ export function createMatrixCanvas(onSelect: (cell: { i: number; j: number } | n
     return v <= NEG_HALF ? null : v;
   };
 
-  /** Recomputes the colour range over reachable cells of the current layer. */
+  /** Recomputes the colour range over reachable cells of the current layer (tight typed-array loops: 25 M cells must not freeze the UI). */
   const computeRange = (): void => {
     lo = Infinity; hi = -Infinity;
-    if (dp) for (let i = 0; i < dp.rows; i++) for (let j = 0; j < dp.cols; j++) { const v = valueAt(i, j); if (v !== null) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+    if (dp) {
+      const layer = dp.kind === 'affine' ? (layerSel.value as Layer) : 'best'; // safe: the select only offers Layer values
+      const a: Int32Array = dp.kind === 'linear' ? dp.H : layer === 'X' ? dp.X : layer === 'Y' ? dp.Y : dp.M;
+      const best = dp.kind === 'affine' && layer === 'best';
+      const n = a.length;
+      let mn = Infinity; let mx = -Infinity;
+      if (best && dp.kind === 'affine') {
+        const { M, X, Y } = dp;
+        for (let k = 0; k < n; k++) { let v = M[k] as number; const x = X[k] as number; const y = Y[k] as number; if (x > v) v = x; if (y > v) v = y; if (v <= NEG_HALF) continue; if (v < mn) mn = v; if (v > mx) mx = v; } // safe: k < n, equal lengths
+      } else {
+        for (let k = 0; k < n; k++) { const v = a[k] as number; if (v <= NEG_HALF) continue; if (v < mn) mn = v; if (v > mx) mx = v; } // safe: k < n
+      }
+      lo = mn; hi = mx;
+    }
     if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
     if (hi === lo) hi = lo + 1;
     legLo.textContent = String(lo);

@@ -124,3 +124,16 @@ describe('colour contrast (WCAG AA 4.5:1) for text on residue backgrounds and ma
     });
   }
 });
+
+describe('multiple-alignment exports', () => {
+  const ids = ['alpha', 'b'];
+  const rows = ['AC-GT', 'ACAGT'];
+  it('FASTA keeps input order and gaps; CLUSTAL-style marks fully identical columns with *', async () => {
+    const { msaToClustal, msaToFasta } = await import('../../src/io/export');
+    expect(msaToFasta(ids, rows)).toBe('>alpha\nAC-GT\n>b\nACAGT\n');
+    const t = msaToClustal(ids, rows);
+    expect(t).toContain('own progressive aligner');
+    expect(t).toContain('alpha      AC-GT');
+    expect(t).toContain(' '.repeat(11) + '** **');
+  });
+});

@@ -1,0 +1,23 @@
+{
+ "scipy": "1.11.1",
+ "upgma": [
+  {
+   "id": "set0",
+   "taxa": 6,
+   "same_rooted_clades": true,
+   "abs_length_diff": 0.0
+  },
+  {
+   "id": "set1",
+   "taxa": 8,
+   "same_rooted_clades": true,
+   "abs_length_diff": 5.551115123125783e-17
+  },
+  {
+   "id": "set2",
+   "taxa": 10,
+   "same_rooted_clades": true,
+   "abs_length_diff": 0.0
+  }
+ ]
+}
