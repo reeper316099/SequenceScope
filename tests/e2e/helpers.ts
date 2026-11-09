@@ -13,10 +13,10 @@ export interface Launched {
   requests: string[];
 }
 
-/** Starts the app; pass `userData` to reuse a profile (e.g. to test persistence across restarts). */
+/** Starts the app (CI adds --no-sandbox because GitHub's Ubuntu runners restrict user namespaces; the app itself still sets sandbox: true); pass `userData` to reuse a profile (e.g. to test persistence across restarts). */
 export async function launch(userData = mkdtempSync(path.join(tmpdir(), 'sscope-e2e-'))): Promise<Launched> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k, v]) => k !== 'ELECTRON_RENDERER_URL' && v !== undefined)) as Record<string, string>; // safe: undefined values are filtered out
-  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`], env: { ...env, SEQUENCESCOPE_E2E: '1' } });
+  const app = await electron.launch({ args: ['.', `--user-data-dir=${userData}`, ...(process.env['CI'] ? ['--no-sandbox'] : [])], env: { ...env, SEQUENCESCOPE_E2E: '1' } });
   const page = await app.firstWindow();
   const consoleErrors: string[] = [];
   const requests: string[] = [];

@@ -2,7 +2,10 @@
   "name": "sequencescope",
   "version": "0.1.0",
   "description": "Interactive desktop lab for sequence alignment and distance-based phylogenetics (educational).",
-  "author": "reeper316099",
+  "author": {
+    "name": "reeper316099",
+    "url": "https://github.com/reeper316099"
+  },
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -26,7 +29,8 @@
     "format": "prettier --write .",
     "ref:generate": "python3 -I tools/gen_alignment_refs.py && python3 -I tools/gen_tree_refs.py && python3 -I tools/gen_distance_refs.py && python3 -I tools/gen_upgma_scipy_refs.py",
     "examples:fetch": "python3 -I tools/fetch_examples.py && python3 -I tools/align_examples.py",
-    "screenshots": "npm run build && SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts"
+    "screenshots": "npm run build && SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts",
+    "pack": "npm run build && electron-builder --dir"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -45,5 +49,6 @@
     "vite": "8.3.6",
     "vitest": "5.1.0",
     "zod": "4.6.7"
-  }
+  },
+  "productName": "SequenceScope"
 }

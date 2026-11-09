@@ -1,0 +1,58 @@
+# electron-builder configuration. Installers are UNSIGNED (see README): Windows shows SmartScreen, macOS shows Gatekeeper.
+appId: com.reeper316099.sequencescope
+productName: SequenceScope
+copyright: Copyright © 2026 reeper316099
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: examples
+    to: examples
+    filter:
+      - '**/*'
+asar: true
+npmRebuild: false
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-win-${arch}-setup.${ext}
+portable:
+  artifactName: ${productName}-${version}-win-${arch}-portable.${ext}
+
+mac:
+  icon: build/icon.icns
+  category: public.app-category.education
+  identity: null # no signing certificate: the app is unsigned and not notarized
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  target:
+    - target: dmg
+      arch: [universal]
+dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+
+linux:
+  icon: build/icon.png
+  category: Education
+  maintainer: reeper316099 <reeper316099@users.noreply.github.com>
+  target:
+    - AppImage
+    - deb
+
+publish:
+  provider: github
+  owner: reeper316099
+  repo: SequenceScope
+  releaseType: release
