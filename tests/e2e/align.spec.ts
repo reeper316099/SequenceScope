@@ -106,10 +106,16 @@ test('shuffle test: fixed seed reproduces exactly; Cancel works mid-run', async 
   expect(second).toBe(first);
   expect(first.toLowerCase()).toContain('seed');
   expect(first).toContain('777');
+  // Cancel test: a job that is long on ANY machine (400 x 400 residues x 5000 shuffles is roughly 800 million cell updates),
+  // so the Cancel button is still there when we click it, even on a fast CI runner.
+  const big = (s: string): string => s.slice(0, 40).repeat(10);
+  await page.locator('.view-align').getByLabel('Sequence A: paste residues or FASTA').fill(big(a));
+  await page.locator('.view-align').getByLabel('Sequence B: paste residues or FASTA').fill(big(b));
+  await expect(page.locator('.view-align .stat', { hasText: 'Alignment length' }).locator('.stat-value')).toHaveText(/^[4-9]\d\d$/, { timeout: 30_000 });
   await page.locator('.view-align').getByLabel('Number of shuffles').fill('5000');
   await page.getByRole('button', { name: 'Run shuffle test' }).click();
   await expect(page.locator('.signif-status')).toContainText('Running');
-  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.locator('.view-align .signif').getByRole('button', { name: 'Cancel' }).click();
   await expect(page.locator('.signif-status')).toContainText('Cancelled');
 });
 
