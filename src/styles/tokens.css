@@ -1,13 +1,23 @@
-/* Design tokens. Dark mode overrides via [data-theme="dark"]; the app picks the OS preference by default. */
+/* Design tokens. Dark mode overrides via [data-theme="dark"]; the app picks the OS preference on first run. */
 :root {
   --bg: #f6f5fb; --surface: #ffffff; --surface-2: #efedf8; --text: #1d1730; --text-muted: #5a5373;
-  --border: #d9d4ec; --primary: #5b34a6; --primary-deep: #3b1f6b; --secondary: #06b6d4; --accent: #f59e0b;
-  --ok: #0f7b4f; --bad: #b3261e; --shadow: 0 2px 10px rgb(59 31 107 / 12%); --radius: 14px;
+  --border: #cfc9e6; --primary: #5b34a6; --primary-deep: #3b1f6b; --secondary: #06b6d4; --accent: #f59e0b;
+  --ok: #0f7b4f; --bad: #b3261e; --warn-bg: #fff4dc; --info-bg: #eaf4fb; --bad-bg: #fdeceb;
+  --shadow: 0 2px 10px rgb(59 31 107 / 12%); --radius: 14px;
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Heat-map ramp (matrix canvas + legend) */
+  --heat-lo: #f3f0fb; --heat-hi: #3b1f6b;
+  /* Residue colours: tints of the Okabe-Ito colour-blind-safe palette (Okabe & Ito, 2008). Dark text on each. */
+  --res-text: #1d1730; --res-A: #fad9a0; --res-C: #bfe3f6; --res-G: #a8e0cf; --res-T: #f2b99a;
+  --res-hydrophobic: #fad9a0; --res-polar: #bfe3f6; --res-positive: #9cc4e4; --res-negative: #f2b99a; --res-special: #ebc3da; --res-other: #e4e1ee;
 }
 :root[data-theme='dark'] {
   --bg: #130f1f; --surface: #1c1730; --surface-2: #261f40; --text: #efeafc; --text-muted: #b2a9d1;
-  --border: #3a3160; --primary: #a98bf0; --primary-deep: #3b1f6b; --secondary: #22d3ee; --accent: #fbbf24;
-  --ok: #4ade80; --bad: #ff8a80; --shadow: 0 2px 12px rgb(0 0 0 / 45%);
+  --border: #463c75; --primary: #a98bf0; --primary-deep: #3b1f6b; --secondary: #22d3ee; --accent: #fbbf24;
+  --ok: #4ade80; --bad: #ff8a80; --warn-bg: #3a2c0c; --info-bg: #14273a; --bad-bg: #3b1715;
+  --shadow: 0 2px 12px rgb(0 0 0 / 45%);
+  --heat-lo: #261f40; --heat-hi: #c9b6ff;
+  --res-text: #f4f0ff; --res-A: #7a5a10; --res-C: #1f6584; --res-G: #136b54; --res-T: #8a3a0b;
+  --res-hydrophobic: #7a5a10; --res-polar: #1f6584; --res-positive: #2a5a96; --res-negative: #8a3a0b; --res-special: #7a3a62; --res-other: #3a3560;
 }

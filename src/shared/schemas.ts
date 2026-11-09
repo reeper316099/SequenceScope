@@ -24,3 +24,26 @@ export const windowStateSchema = z.object({
   maximized: z.boolean().optional(),
 });
 export type WindowState = z.infer<typeof windowStateSchema>;
+
+// ---- Bundled example sets (examples/index.json and examples/<set>/metadata.json) ----
+
+export const exampleIndexSchema = z.object({
+  sets: z.array(z.object({ id: z.string(), title: z.string(), molecule: z.enum(['dna', 'protein']), records: z.number().int(), aligned: z.boolean() })),
+});
+export type ExampleIndex = z.infer<typeof exampleIndexSchema>;
+
+export const exampleMetaSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  molecule: z.enum(['dna', 'protein']),
+  purpose: z.string(),
+  retrieved: z.string(),
+  fasta_file: z.string(),
+  fasta_sha256: z.string(),
+  license: z.object({ name: z.string(), quote: z.string(), source_url: z.string(), license_checked: z.string(), caveat: z.string().optional() }),
+  citation: z.string(),
+  notes: z.string(),
+  records: z.array(z.object({ accession: z.string(), header: z.string(), length: z.number().int(), database: z.string() }).passthrough()),
+  aligned: z.object({ file: z.string(), tool: z.string(), version: z.string(), command: z.string(), tool_license: z.string(), sha256: z.string(), note: z.string() }).optional(),
+});
+export type ExampleMeta = z.infer<typeof exampleMetaSchema>;

@@ -89,7 +89,7 @@ export function parseFasta(text: string, options: ParseOptions = {}): ParsedFast
       alphabet = 'protein'; // so invalid characters below are still listed with positions
     } else {
       alphabet = det.alphabet;
-      if (det.confidence === 'low') issues.push({ severity: 'warning', code: 'low-confidence-alphabet', recordIndex: null, recordId: null, message: `Detected ${det.alphabet} with low confidence (${det.reason}). Override it manually if wrong.` });
+      if (det.confidence === 'low') issues.push({ severity: 'info', code: 'low-confidence-alphabet', recordIndex: null, recordId: null, message: `Detected ${det.alphabet} with low confidence (${det.reason}). Override it manually if wrong.` });
     }
   }
 

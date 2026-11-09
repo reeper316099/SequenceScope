@@ -8,7 +8,7 @@
 //  * Co-optimal alignments can be enumerated up to a hard cap.
 //
 // Memory per cell: linear = Int32 H (4 B) + Uint8 pointers (1 B) = 5 B; affine = 3 x Int32 (12 B) + Uint16 pointers (2 B) = 14 B.
-import type { AlignMode, PairwiseAlignment } from '../shared/types';
+import type { AlignMode, DpSnapshot, PairwiseAlignment } from '../shared/types';
 import { BioError } from './errors';
 import { encodeResidues } from './scoring';
 import type { CompiledScoring } from './scoring';
@@ -408,4 +408,76 @@ export function alignScoreOnly(a: string, b: string, mode: AlignMode, scoring: C
     [pY, cY] = [cY, pY];
   }
   return local ? best : Math.max(i32(pM, n), i32(pX, n), i32(pY, n));
+}
+
+/** Cell inspection data for the details panel: the candidate values behind one DP cell and the move(s) chosen. */
+export type CellInfo =
+  | { kind: 'border'; i: number; j: number; value: number; note: string }
+  | { kind: 'linear'; i: number; j: number; s: number; diag: number; up: number; left: number; zeroFloor: boolean; value: number; chosen: ('diagonal' | 'up' | 'left')[] }
+  | {
+      kind: 'affine'; i: number; j: number; s: number;
+      /** M: best of the three states at (i-1,j-1) [+ fresh start for local], plus s. */
+      M: { fromM: number; fromX: number; fromY: number; startFresh: boolean; value: number; chosen: string[] };
+      /** X: gap column consuming a_i: open from M/Y, or extend X. */
+      X: { openFromM: number; extendX: number; openFromY: number; value: number; chosen: string[] };
+      /** Y: gap column consuming b_j: open from M/X, or extend Y. */
+      Y: { openFromM: number; openFromX: number; extendY: number; value: number; chosen: string[] };
+    };
+
+const STATE_NAMES = ['M', 'X', 'Y'];
+
+/** Reads the three-state predecessor names from a 3-bit mask (M=1, X=2, Y=4). */
+function maskNames(mask: number): string[] {
+  return STATE_NAMES.filter((_, k) => (mask & (1 << k)) !== 0);
+}
+
+/** Explains one DP cell: recomputes the candidate values from the stored tables (no recomputation of the whole fill). */
+export function cellInfo(dp: Dp, i: number, j: number): CellInfo {
+  const w = dp.cols;
+  const idx = i * w + j;
+  if (i === 0 || j === 0) {
+    const value = dp.kind === 'linear' ? i32(dp.H, idx) : Math.max(i32(dp.M, idx), i32(dp.X, idx), i32(dp.Y, idx));
+    const note = dp.mode === 'local' ? 'Local alignment: the first row and column are 0 (an alignment may start anywhere).' : 'Global alignment: leading gaps are charged, so the border holds the cost of gaps only.';
+    return { kind: 'border', i, j, value: value <= NEG / 2 ? 0 : value, note };
+  }
+  const s = i32(dp.scoring.table, u8(dp.codesA, i - 1) * dp.scoring.classes + u8(dp.codesB, j - 1));
+  if (dp.kind === 'linear') {
+    const g = dp.scoring.gapOpen;
+    const diag = i32(dp.H, idx - w - 1) + s;
+    const up = i32(dp.H, idx - w) - g;
+    const left = i32(dp.H, idx - 1) - g;
+    const best = Math.max(diag, up, left);
+    const zeroFloor = dp.mode === 'local' && best <= 0;
+    const mask = u8(dp.P, idx);
+    const chosen: ('diagonal' | 'up' | 'left')[] = [];
+    if (mask & L_DIAG) chosen.push('diagonal');
+    if (mask & L_UP) chosen.push('up');
+    if (mask & L_LEFT) chosen.push('left');
+    return { kind: 'linear', i, j, s, diag, up, left, zeroFloor, value: i32(dp.H, idx), chosen };
+  }
+  const p = u16(dp.P, idx);
+  const open = dp.scoring.gapOpen;
+  const ext = dp.scoring.gapExtend;
+  const pi = idx - w - 1;
+  const ui = idx - w;
+  const li = idx - 1;
+  return {
+    kind: 'affine', i, j, s,
+    M: { fromM: i32(dp.M, pi), fromX: i32(dp.X, pi), fromY: i32(dp.Y, pi), startFresh: (p & A_START) !== 0, value: i32(dp.M, idx), chosen: (p & A_START) !== 0 ? ['fresh start'] : maskNames(p & 7) },
+    X: { openFromM: i32(dp.M, ui) - open, extendX: i32(dp.X, ui) - ext, openFromY: i32(dp.Y, ui) - open, value: i32(dp.X, idx), chosen: maskNames((p >> A_X_SHIFT) & 7) },
+    Y: { openFromM: i32(dp.M, li) - open, openFromX: i32(dp.X, li) - open, extendY: i32(dp.Y, li) - ext, value: i32(dp.Y, idx), chosen: maskNames((p >> A_Y_SHIFT) & 7) },
+  };
+}
+
+/** Rebuilds a full Dp (with encoded sequences and compiled scoring) from a transferred snapshot, for inspection in the UI. */
+export function dpFromSnapshot(snap: DpSnapshot, a: string, b: string, scoring: CompiledScoring): Dp {
+  const base = { mode: snap.mode, strA: a, strB: b, codesA: encodeResidues(a, scoring), codesB: encodeResidues(b, scoring), rows: snap.rows, cols: snap.cols, scoring, score: snap.score, ends: snap.ends };
+  return snap.kind === 'linear' ? { ...base, kind: 'linear', H: snap.H, P: snap.P } : { ...base, kind: 'affine', M: snap.M, X: snap.X, Y: snap.Y, P: snap.P };
+}
+
+/** Extracts the plain, transferable tables from a Dp (worker side). */
+export function dpToSnapshot(dp: Dp): DpSnapshot {
+  return dp.kind === 'linear'
+    ? { kind: 'linear', mode: dp.mode, rows: dp.rows, cols: dp.cols, score: dp.score, ends: dp.ends, H: dp.H, P: dp.P }
+    : { kind: 'affine', mode: dp.mode, rows: dp.rows, cols: dp.cols, score: dp.score, ends: dp.ends, M: dp.M, X: dp.X, Y: dp.Y, P: dp.P };
 }

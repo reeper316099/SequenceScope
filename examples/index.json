@@ -1,0 +1,39 @@
+{
+  "sets": [
+    {
+      "id": "globin_alpha_primates_near_identical",
+      "title": "Alpha-globin of human, chimp, gorilla, rhesus (near-identical)",
+      "molecule": "protein",
+      "records": 4,
+      "aligned": false
+    },
+    {
+      "id": "globin_alpha_vertebrates",
+      "title": "Hemoglobin subunit alpha across 13 vertebrates",
+      "molecule": "protein",
+      "records": 13,
+      "aligned": true
+    },
+    {
+      "id": "mito_cytb_mammals",
+      "title": "Mitochondrial CYTB coding sequence, 7 primates + mouse, cow, dog",
+      "molecule": "dna",
+      "records": 10,
+      "aligned": true
+    },
+    {
+      "id": "pair_globin_alpha_beta_gaps",
+      "title": "Human alpha- vs beta-globin (related, gapped)",
+      "molecule": "protein",
+      "records": 2,
+      "aligned": false
+    },
+    {
+      "id": "pair_unrelated",
+      "title": "Human alpha-globin vs human insulin precursor (unrelated)",
+      "molecule": "protein",
+      "records": 2,
+      "aligned": false
+    }
+  ]
+}

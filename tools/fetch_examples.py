@@ -148,5 +148,20 @@ def main() -> None:
               "Rapidly evolving third codon positions; mouse/cow/dog show higher divergence.", "DNA set for distance models/saturation.")
 
 
+def write_index() -> None:
+    """Write examples/index.json (list of set ids + titles) from the per-set metadata files, so the app can list them."""
+    sets = []
+    for meta_path in sorted(OUT.glob("*/metadata.json")):
+        m = json.loads(meta_path.read_text())
+        sets.append({"id": m["id"], "title": m["title"], "molecule": m["molecule"], "records": len(m["records"]),
+                     "aligned": "aligned" in m})
+    (OUT / "index.json").write_text(json.dumps({"sets": sets}, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote index.json with {len(sets)} sets")
+
+
 if __name__ == "__main__":
-    main()
+    if "--index-only" in sys.argv:
+        write_index()
+    else:
+        main()
+        write_index()

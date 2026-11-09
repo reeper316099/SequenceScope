@@ -24,7 +24,7 @@ export type JobState<T> =
 export type WorkerReply<R> =
   | { type: 'progress'; fraction: number }
   | { type: 'result'; value: R }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string; code?: string };
 
 /** Request/reply for the Phase 2 worker smoke test (doubles a number). */
 export interface PingRequest {
@@ -127,3 +127,63 @@ export interface PairwiseAlignment {
 /** Typed error codes thrown by the bio modules (never silent garbage). */
 export type BioErrorCode =
   | 'too-large' | 'invalid-residue' | 'invalid-scoring' | 'invalid-argument' | 'unknown-matrix' | 'alphabet-mismatch';
+
+// ---- Pairwise worker protocol (Milestone A) ----
+
+/** Alphabet chosen in the UI: a fixed one, or detected automatically. */
+export type AlphabetChoice = Alphabet | 'auto';
+
+/** Everything the DP viewer needs, as plain typed arrays that can be TRANSFERRED (not copied) from the worker. */
+export type DpSnapshot =
+  | { kind: 'linear'; mode: AlignMode; rows: number; cols: number; score: number; ends: number[]; H: Int32Array; P: Uint8Array }
+  | { kind: 'affine'; mode: AlignMode; rows: number; cols: number; score: number; ends: number[]; M: Int32Array; X: Int32Array; Y: Int32Array; P: Uint16Array };
+
+/** Request to align two (already cleaned, uppercase) sequences. */
+export interface AlignRequest {
+  type: 'align';
+  a: string;
+  b: string;
+  alphabet: Alphabet;
+  mode: AlignMode;
+  scoring: ScoringSpec;
+  enumerateCap: number;
+}
+
+/** Worker result: the preferred alignment, co-optimal alignments (capped), and the DP tables for the matrix view. */
+export interface AlignResult {
+  alignment: PairwiseAlignment;
+  all: PairwiseAlignment[];
+  capped: boolean;
+  dp: DpSnapshot;
+}
+
+/** Request to run the seeded shuffle significance test. */
+export interface ShuffleRequest {
+  type: 'shuffle';
+  a: string;
+  b: string;
+  alphabet: Alphabet;
+  mode: AlignMode;
+  scoring: ScoringSpec;
+  shuffles: number;
+  seed: number;
+}
+
+/** Plain-data result of the shuffle test (typed arrays are fine to clone). */
+export interface ShuffleSummary {
+  seed: number;
+  shuffles: number;
+  realScore: number;
+  scores: Int32Array;
+  mean: number;
+  sd: number;
+  z: number | null;
+  atLeastAsGood: number;
+  pValue: number;
+}
+
+/** Worker error payload carries the BioError code when there is one. */
+export interface WorkerErrorInfo {
+  code: BioErrorCode | 'unexpected';
+  message: string;
+}
