@@ -3,6 +3,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import { MENU_ACTIONS } from './shared/types';
+import { installTauriBridge } from './tauri/bridge';
 import type { MenuAction, SequenceScopeApi } from './shared/types';
 import { createAboutView } from './ui/aboutView';
 import { createAlignView } from './ui/alignView';
@@ -146,4 +147,5 @@ function main(): void {
   });
 }
 
+installTauriBridge(); // Tauri only: provides window.sequenceScope before the UI uses it (no-op under Electron)
 main();

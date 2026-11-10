@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "The ONLY things the web page may ask Rust to do: the five app commands (plus the smoke-test report, which refuses unless smoke mode is on). No core, dialog, opener, clipboard, fs, shell, or http permissions are granted to the page.",
+  "windows": ["main"],
+  "permissions": [
+    "allow-open-file",
+    "allow-save-file",
+    "allow-open-external",
+    "allow-get-app-info",
+    "allow-copy-text",
+    "allow-smoke-report"
+  ]
+}

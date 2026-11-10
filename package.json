@@ -30,11 +30,17 @@
     "ref:generate": "python3 -I tools/gen_alignment_refs.py && python3 -I tools/gen_tree_refs.py && python3 -I tools/gen_distance_refs.py && python3 -I tools/gen_upgma_scipy_refs.py",
     "examples:fetch": "python3 -I tools/fetch_examples.py && python3 -I tools/align_examples.py",
     "screenshots": "npm run build && SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts",
-    "pack": "npm run build && electron-builder --dir"
+    "pack": "npm run build && electron-builder --dir",
+    "renderer:dev": "vite --config vite.tauri.config.ts",
+    "renderer:build": "vite build --config vite.tauri.config.ts",
+    "test:tauri-ui": "npm run renderer:build && playwright test -c playwright.tauri.config.ts",
+    "tauri": "tauri"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.65.0",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/cli": "2.12.4",
     "@types/node": "22.20.5",
     "@vitest/coverage-v8": "5.1.0",
     "chart.js": "4.6.1",

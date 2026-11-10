@@ -1,0 +1,2 @@
+# Wider lines than the 100 default: these files carry one-line comments and long error strings.
+max_width = 120

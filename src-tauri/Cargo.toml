@@ -1,0 +1,27 @@
+[package]
+name = "sequencescope"
+version = "0.1.0"
+description = "SequenceScope desktop shell (Tauri): native dialogs, validated commands, locked-down webview"
+authors = ["reeper316099"]
+license = "MIT"
+repository = "https://github.com/reeper316099/SequenceScope"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "sequencescope_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+# Exact pins (=) on purpose: upgrades are a deliberate decision, not a side effect of `cargo update`.
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-opener = "=2.7.2"
+tauri-plugin-clipboard-manager = "=2.5.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+url = "=2.5.8"
+base64 = "=0.23.1"
