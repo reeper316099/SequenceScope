@@ -2,13 +2,13 @@
 // view and edit the tree, import/export Newick, bootstrap (aligned input only), and compare trees.
 import { createBootstrapWorker } from '../backend';
 import type { JobWorker } from '../backend';
-import type { BootstrapResult } from '../bio/bootstrap';
+import type { BootstrapResult } from '../shared/results';
 import { buildTreesAsync, editTreeAsync, limits, parseNewickAsync, writeNewickAsync } from '../backend/api';
 import type { TreeEdit } from '../backend/api';
 import { BioError } from '../bio/errors';
-import { hasNegativeBranches, isLeaf, leafNames, preorder, totalLength } from '../bio/tree';
+import { hasNegativeBranches, isLeaf, leafNames, preorder, totalLength } from '../bio/treeAccess';
 import type { Tree, WorkerReply } from '../shared/types';
-import type { BootstrapRequest } from '../workers/protocol';
+import type { BootstrapRequest } from '../shared/results';
 import { callout, card, toast } from './cards';
 import { createCompareView } from './compareView';
 import type { NamedTree } from './compareView';

@@ -2,17 +2,8 @@
 import type { Tree } from '../shared/types';
 import { BioError } from './errors';
 import { cladeKey, isLeaf, leafNames, nontrivialSplits, preorder } from './tree';
-
-export interface RfResult {
-  /** |S1 Δ S2|: number of non-trivial splits present in exactly one tree. */
-  distance: number;
-  /** Largest possible RF for these trees: |S1| + |S2|. */
-  max: number;
-  shared: string[][];
-  onlyInA: string[][];
-  onlyInB: string[][];
-  leafCount: number;
-}
+import type { RfResult } from '../shared/results';
+export type { RfResult }; // moved to shared/results.ts
 
 /** Compares two trees; throws if their leaf sets differ. */
 export function robinsonFoulds(a: Tree, b: Tree): RfResult {

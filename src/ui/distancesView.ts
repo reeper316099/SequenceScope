@@ -13,7 +13,7 @@ import { analyzeSet, countUnusablePairs, sortOrder, uniquifyNames } from './sequ
 import type { SetMode } from './sequenceSet';
 import type { AppView } from './view';
 import { MAX_OPEN_FILE_BYTES } from '../shared/types';
-import type { DistancesRequest } from '../workers/protocol';
+import type { DistancesRequest } from '../shared/results';
 import { distanceExportAsync, modelsFor, writeFastaAsync } from '../backend/api';
 
 const MODEL_TEXT: Record<DistanceModel, { label: string; text: string }> = {

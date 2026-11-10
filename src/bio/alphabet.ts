@@ -1,5 +1,7 @@
 // Alphabets (DNA / RNA / protein), IUPAC ambiguity codes, input cleaning, and alphabet detection.
 import type { Alphabet } from '../shared/types';
+import type { Detection } from '../shared/results';
+export type { Detection }; // moved to shared/results.ts
 
 export const DNA_STANDARD = 'ACGT';
 export const RNA_STANDARD = 'ACGU';
@@ -55,12 +57,6 @@ export function findInvalid(residues: string, alphabet: Alphabet, allowGaps = fa
     bad.push({ index: i, char: ch });
   }
   return bad;
-}
-
-export interface Detection {
-  alphabet: Alphabet | 'unknown';
-  confidence: 'high' | 'low';
-  reason: string;
 }
 
 /**

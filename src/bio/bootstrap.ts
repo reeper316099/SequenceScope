@@ -7,28 +7,18 @@
 //
 // Reproducibility: replicate r uses its own PRNG stream derived from (seed, r), so results do not depend on how replicates
 // are split across workers; `bootstrapRange` computes any slice and `mergeBootstrap` combines slices exactly.
-import type { Alphabet, DistanceModel, GapPolicy, Tree } from '../shared/types';
+import type { DistanceModel, GapPolicy, Tree } from '../shared/types';
 import { assertModel, distanceMatrixFromCodes, encodeAligned, MAX_BOOTSTRAP_WORK, MAX_TREE_TAXA, unusablePairs } from './distance';
 import { BioError } from './errors';
 import { neighborJoining } from './nj';
 import { createRng, deriveSeed } from './rng';
 import { annotateSupport, nontrivialSplits } from './tree';
 import { upgma } from './upgma';
+import type { TreeMethod, BootstrapInput, BootstrapSplitSupport, BootstrapResult } from '../shared/results';
+export type { TreeMethod, BootstrapInput, BootstrapSplitSupport, BootstrapResult }; // moved to shared/results.ts
 
-export type TreeMethod = 'upgma' | 'nj';
 export const MAX_REPLICATES = 1000;
 export const MAX_COLUMNS = 50_000;
-
-export interface BootstrapInput {
-  names: string[];
-  rows: string[]; // aligned, equal length
-  alphabet: Alphabet;
-  model: DistanceModel;
-  gapPolicy: GapPolicy;
-  method: TreeMethod;
-  replicates: number;
-  seed: number;
-}
 
 export interface BootstrapCounts {
   /** split key -> number of replicates (in this slice) containing it. */
@@ -37,23 +27,6 @@ export interface BootstrapCounts {
   failed: number;
   /** replicates covered by this slice. */
   done: number;
-}
-
-export interface BootstrapSplitSupport {
-  leaves: string[];
-  count: number;
-  percent: number;
-}
-
-export interface BootstrapResult {
-  referenceTree: Tree; // with support values attached
-  supports: BootstrapSplitSupport[]; // one entry per non-trivial split of the reference tree
-  replicates: number;
-  seed: number;
-  failedReplicates: number;
-  method: TreeMethod;
-  model: DistanceModel;
-  gapPolicy: GapPolicy;
 }
 
 /** Checks sizes and model before any work starts. */

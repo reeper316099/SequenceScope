@@ -1,8 +1,8 @@
 // Deterministic test inputs shared by the parity and benchmark runs. They come from the project's own seeded PRNG
-// (src/bio/rng.ts), and the Rust benchmark (crates/sequencescope-core/examples/bench.rs) generates the SAME sequences
+// (src/tauri/rng.ts), and the Rust benchmark (crates/sequencescope-core/examples/bench.rs) generates the SAME sequences
 // with its port of that PRNG, so TypeScript and Rust are timed on identical inputs.
-import { createRng } from '../bio/rng';
-import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
+import { createRng } from './rng';
+import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../shared/results';
 import type { AlignMode, AlignRequest, Alphabet, GapModel, ScoringSpec, ShuffleRequest } from '../shared/types';
 
 export const DNA = 'ACGT';

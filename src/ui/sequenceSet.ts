@@ -2,7 +2,7 @@
 import { DIST_OK } from '../shared/types';
 import type { Alphabet, AlphabetChoice, DistanceMatrix, Sequence } from '../shared/types';
 import { limits, parseFastaAsync } from '../backend/api';
-import type { FastaIssue } from '../bio/fasta';
+import type { FastaIssue } from '../shared/results';
 
 export type SetMode = 'aligned' | 'unaligned';
 

@@ -5,8 +5,8 @@
 //      variable, or by tests)
 //   2. localStorage "sequencescope.backend"  (same values; set it from the developer console to flip the app)
 //   3. "ts"
-import type { BootstrapResult } from '../bio/bootstrap';
-import type { MsaResult } from '../bio/msa';
+import type { BootstrapResult } from '../shared/results';
+import type { MsaResult } from '../shared/results';
 import type { AlignResult, DistanceMatrix, ShuffleSummary, WorkerReply } from '../shared/types';
 import { RustWorker } from './rust';
 import type { BackendName, JobWorker } from './types';

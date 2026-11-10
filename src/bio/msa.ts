@@ -7,7 +7,7 @@
 // pairs involving a gap contribute 0. Gap penalties (open/extend) are charged once per profile column, unscaled.
 // "Once a gap, always a gap": merging only INSERTS all-gap columns into the two profiles; existing columns are never changed.
 // This is a HEURISTIC: it is not guaranteed to maximise the sum-of-pairs score, and an early mistake is frozen in.
-import type { Alphabet, DistanceMatrix, Sequence, Tree } from '../shared/types';
+import type { DistanceMatrix, Sequence, Tree } from '../shared/types';
 import { DIST_OK } from '../shared/types';
 import { scoreAlignedRows } from './alignstats';
 import { assertTreeReady, pairwiseDistanceMatrix } from './distance';
@@ -18,37 +18,16 @@ import { encodeResidues } from './scoring';
 import type { CompiledScoring } from './scoring';
 import { isLeaf, leafNames, midpointRoot } from './tree';
 import { upgma } from './upgma';
+import type { GuideMethod, MsaStep, MsaResult } from '../shared/results';
+export type { GuideMethod, MsaStep, MsaResult }; // moved to shared/results.ts
 
 export const MAX_MSA_SEQS = 50;
 export const MAX_MSA_LENGTH = 3000;
 const GAP = 255;
 
-export type GuideMethod = 'upgma' | 'nj';
-
 export interface MsaHooks {
   onProgress?: (fraction: number) => void;
   shouldCancel?: () => boolean;
-}
-
-export interface MsaStep {
-  /** Row ids of the merged profile (left group first, then right group). */
-  ids: string[];
-  leftIds: string[];
-  rightIds: string[];
-  rows: string[];
-  /** Optimal profile-profile alignment score of this merge. */
-  score: number;
-}
-
-export interface MsaResult {
-  ids: string[];
-  rows: string[];
-  alphabet: Alphabet;
-  guideTree: Tree;
-  guide: GuideMethod;
-  steps: MsaStep[];
-  /** Sum over all sequence pairs of the pairwise score of their projected alignment (gap-gap columns removed). */
-  sumOfPairs: number;
 }
 
 /** Sum-of-pairs score of an alignment: each pair of rows is scored with the independent column-by-column scorer. */

@@ -1,7 +1,7 @@
 // Reconstructs the partial forest after k steps of UPGMA / neighbor-joining so the step-through can draw the tree growing.
 import type { TreeNode } from '../shared/types';
-import type { NjStep } from '../bio/nj';
-import type { UpgmaStep } from '../bio/upgma';
+import type { NjStep } from '../shared/results';
+import type { UpgmaStep } from '../shared/results';
 
 export interface ForestResult {
   /** Clusters (subtrees) alive after k steps, in creation order. */

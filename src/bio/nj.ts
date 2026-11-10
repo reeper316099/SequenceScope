@@ -7,44 +7,8 @@
 import type { DistanceMatrix, Tree, TreeNode } from '../shared/types';
 import { BioError } from './errors';
 import { assertTreeReady, toRows } from './distance';
-
-export interface NjJoinStep {
-  kind: 'join';
-  step: number;
-  active: number[];
-  matrix: number[][];
-  /** r_i for each active node. */
-  sums: number[];
-  /** Q matrix (diagonal entries are 0 and not candidates). */
-  q: number[][];
-  i: number;
-  j: number;
-  a: number;
-  b: number;
-  distance: number;
-  qMin: number;
-  newId: number;
-  branchA: number;
-  branchB: number;
-  others: number[];
-  newRow: number[];
-}
-export interface NjFinalStep {
-  kind: 'final';
-  step: number;
-  active: number[];
-  matrix: number[][];
-  ids: [number, number, number];
-  branches: [number, number, number];
-  newId: number;
-}
-export type NjStep = NjJoinStep | NjFinalStep;
-
-export interface NjResult {
-  tree: Tree;
-  steps: NjStep[];
-  names: string[];
-}
+import type { NjJoinStep, NjFinalStep, NjStep, NjResult } from '../shared/results';
+export type { NjJoinStep, NjFinalStep, NjStep, NjResult }; // moved to shared/results.ts
 
 /** Builds the NJ tree (unrooted: the root has 3 children) and records every step. */
 export function neighborJoining(m: DistanceMatrix): NjResult {

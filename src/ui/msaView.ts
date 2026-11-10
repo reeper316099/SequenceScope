@@ -1,13 +1,13 @@
 // MSA view (Milestone C): load a set, choose a guide-tree method and scoring, run the progressive aligner in a worker, view the
 // alignment with conservation, select columns, export, and build a tree (with bootstrap) from the app's own alignment.
-import type { MsaResult } from '../bio/msa';
+import type { MsaResult } from '../shared/results';
 import { conservationCsvAsync, limits, writeFastaAsync, writeNewickAsync } from '../backend/api';
 import { createMsaWorker } from '../backend';
 import type { JobWorker } from '../backend';
 import { msaToClustal, msaToFasta } from '../io/export';
 import type { Alphabet, AlphabetChoice, ScoringSpec } from '../shared/types';
 import { MAX_OPEN_FILE_BYTES } from '../shared/types';
-import type { MsaRequest } from '../workers/protocol';
+import type { MsaRequest } from '../shared/results';
 import { callout, card, statTile, toast } from './cards';
 import { clear, debounce, el } from './dom';
 import { loadExampleIndex, loadExampleText } from './examples';

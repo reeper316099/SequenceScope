@@ -4,39 +4,8 @@
 import type { DistanceMatrix, Tree, TreeNode } from '../shared/types';
 import { BioError } from './errors';
 import { assertTreeReady, toRows } from './distance';
-
-export interface UpgmaStep {
-  step: number;
-  /** Cluster ids in scan order before this merge (leaves are 0..n-1, merged clusters n, n+1, ...). */
-  active: number[];
-  /** Distances among the active clusters (same order). */
-  matrix: number[][];
-  /** Chosen pair as indices into `active`, and as cluster ids. */
-  i: number;
-  j: number;
-  a: number;
-  b: number;
-  distance: number;
-  newId: number;
-  /** New node height = distance / 2, and the old heights of the two clusters. */
-  height: number;
-  heightA: number;
-  heightB: number;
-  /** Branch lengths from the new node to its two children (= height - child height). */
-  branchA: number;
-  branchB: number;
-  sizeA: number;
-  sizeB: number;
-  /** Distance from the new cluster to each remaining cluster (ids in `others`). */
-  others: number[];
-  newRow: number[];
-}
-
-export interface UpgmaResult {
-  tree: Tree;
-  steps: UpgmaStep[];
-  names: string[];
-}
+import type { UpgmaStep, UpgmaResult } from '../shared/results';
+export type { UpgmaStep, UpgmaResult }; // moved to shared/results.ts
 
 /** Builds the UPGMA tree and records every merge. Needs at least 3 sequences and a tree-ready matrix. */
 export function upgma(m: DistanceMatrix): UpgmaResult {

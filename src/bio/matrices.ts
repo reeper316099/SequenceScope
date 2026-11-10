@@ -2,22 +2,14 @@
 // tools/gen-matrices.mjs (never typed by hand); see DATA-SOURCES.md for source, terms, and checksums.
 import { BioError } from './errors';
 import { RAW_MATRICES } from './matrices.data';
+import type { SubstitutionMatrix } from '../shared/results';
+export type { SubstitutionMatrix }; // moved to shared/results.ts
 
 export interface RawMatrix {
   name: string;
   letters: string; // row/column order, e.g. "ARNDCQEGHILKMFPSTWYVBZX*"
   values: number[]; // flattened letters.length x letters.length
   sha256: string; // checksum of the source file
-}
-
-export interface SubstitutionMatrix {
-  name: string;
-  letters: string;
-  sha256: string;
-  citation: string;
-  source: string;
-  /** Score for two residue letters, or undefined if either is not in the matrix. */
-  get(a: string, b: string): number | undefined;
 }
 
 export const MATRIX_CITATION =

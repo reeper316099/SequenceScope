@@ -1,8 +1,8 @@
 // Pure (DOM-free) logic behind the Align view: input analysis, alphabet resolution, scoring presets and wording.
 import type { Alphabet, AlphabetChoice, GapModel, ScoringSpec } from '../shared/types';
 import { detectAlphabetAsync, parseFastaAsync } from '../backend/api';
-import type { Detection } from '../bio/alphabet';
-import type { FastaIssue } from '../bio/fasta';
+import type { Detection } from '../shared/results';
+import type { FastaIssue } from '../shared/results';
 
 export interface AnalyzedSequence {
   id: string;

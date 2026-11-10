@@ -2,10 +2,10 @@
 // and presents them with the same replies the TypeScript workers send. Progress arrives on a channel, the alignment tables
 // arrive as one binary frame, and cancellation is a cancel_job command.
 import { Channel, invoke } from '@tauri-apps/api/core';
-import type { BootstrapResult } from '../bio/bootstrap';
-import type { MsaResult } from '../bio/msa';
+import type { BootstrapResult } from '../shared/results';
+import type { MsaResult } from '../shared/results';
 import type { AlignmentStats, AlignRequest, AlignResult, DistanceMatrix, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
-import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
+import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../shared/results';
 import { decodeFrame } from './frame';
 import type { JobWorker } from './types';
 

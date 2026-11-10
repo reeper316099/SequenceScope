@@ -3,7 +3,7 @@
 // The canvas only paints what is visible (it sits "sticky" inside a native scroll container), so large alignments stay fast.
 import type { Alphabet } from '../shared/types';
 import { conservationAsync } from '../backend/api';
-import type { Conservation } from '../bio/conservation';
+import type { Conservation } from '../shared/results';
 import { el } from './dom';
 import { residueClass } from './residueClass';
 import { onThemeChange, token } from './theme';

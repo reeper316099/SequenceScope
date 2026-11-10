@@ -6,10 +6,10 @@ import { createBootstrapWorker, createDistancesWorker, createMsaWorker, createPa
 import type { JobWorker } from '../backend';
 import { rustAlign, rustBootstrap, rustDistances, rustMsa, rustShuffle } from '../backend/rust';
 import type { RustTimings } from '../backend/rust';
-import type { BootstrapResult } from '../bio/bootstrap';
-import type { MsaResult } from '../bio/msa';
+import type { BootstrapResult } from '../shared/results';
+import type { MsaResult } from '../shared/results';
 import type { AlignRequest, AlignResult, DistanceMatrix, ShuffleRequest, ShuffleSummary } from '../shared/types';
-import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
+import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../shared/results';
 import { SCENARIOS } from './inputs';
 import { bitsHex, fnv1a32, hashTyped, sleep } from './util';
 

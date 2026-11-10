@@ -8,17 +8,8 @@
 // first) in UPPERCASE if identity >= threshold (default 0.5), otherwise '.' (no consensus).
 import type { Alphabet } from '../shared/types';
 import { BioError } from './errors';
-
-export interface ColumnStat {
-  gaps: number;
-  residues: number;
-  counts: Record<string, number>;
-  top: string; // most common residue ('' if none)
-  identity: number;
-  entropy: number;
-  conservation: number;
-  consensus: string;
-}
+import type { ColumnStat, Conservation } from '../shared/results';
+export type { ColumnStat, Conservation }; // moved to shared/results.ts
 
 /** Statistics for one alignment column (a string of one character per sequence). */
 export function columnStat(column: string, alphabet: Alphabet, threshold = 0.5): ColumnStat {
@@ -38,14 +29,6 @@ export function columnStat(column: string, alphabet: Alphabet, threshold = 0.5):
   const conservation = residues === 0 ? 0 : Math.max(0, 1 - entropy / hmax) * (1 - gaps / n);
   const consensus = gaps / n > 0.5 ? '-' : residues === 0 ? '-' : identity >= threshold ? top : '.';
   return { gaps, residues, counts, top, identity, entropy, conservation, consensus };
-}
-
-export interface Conservation {
-  columns: ColumnStat[];
-  consensus: string;
-  meanIdentity: number;
-  /** Columns where every sequence has the same residue and no gaps. */
-  fullyConserved: number;
 }
 
 /** Statistics for every column of an alignment (rows of equal length). */

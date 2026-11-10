@@ -3,33 +3,33 @@
 // identical (proved by the parity runs), the UI does not care which one it gets. At the end of the migration the TypeScript
 // branches are deleted and only the Rust calls remain.
 import { detectAlphabet } from '../bio/alphabet';
-import type { Detection } from '../bio/alphabet';
+import type { Detection } from '../shared/results';
 import { MAX_REPLICATES } from '../bio/bootstrap';
 import { conservation, conservationCsv } from '../bio/conservation';
-import type { Conservation } from '../bio/conservation';
+import type { Conservation } from '../shared/results';
 import { correctDistance, matrixFromRows, MAX_TREE_TAXA, modelsFor as tsModelsFor, toDistanceCsv, toPhylip } from '../bio/distance';
 import { BioError } from '../bio/errors';
 import { parseFasta, writeFasta } from '../bio/fasta';
 import { neighborJoining } from '../bio/nj';
-import type { NjResult } from '../bio/nj';
+import type { NjResult } from '../shared/results';
 import { parseNewick, writeNewick } from '../bio/newick';
-import type { ParsedFasta } from '../bio/fasta';
+import type { ParsedFasta } from '../shared/results';
 import { getMatrix as tsGetMatrix, listMatrices as tsListMatrices, MATRIX_CITATION, MATRIX_SOURCE } from '../bio/matrices';
-import type { SubstitutionMatrix } from '../bio/matrices';
+import type { SubstitutionMatrix } from '../shared/results';
 import { bruteForceOptimumSP, MAX_MSA_LENGTH, MAX_MSA_SEQS, sumOfPairsScore } from '../bio/msa';
-import type { MsaResult } from '../bio/msa';
+import type { MsaResult } from '../shared/results';
 import { assertWithinCap, cellInfo as tsCellInfo, dpFromSnapshot, MAX_DP_CELLS, MAX_ENUMERATED_ALIGNMENTS } from '../bio/pairwise';
 import type { Dp } from '../bio/pairwise';
 import { compileScoring } from '../bio/scoring';
 import { assertValidLeaves, leafDistances, midpointRoot, rerootAbove, rerootAtLeaf, rotateNode } from '../bio/tree';
 import { robinsonFoulds, uniqueBranches } from '../bio/treecompare';
-import type { RfResult } from '../bio/treecompare';
+import type { RfResult } from '../shared/results';
 import { upgma } from '../bio/upgma';
-import type { UpgmaResult } from '../bio/upgma';
+import type { UpgmaResult } from '../shared/results';
 import { MAX_SHUFFLES } from '../bio/shuffle';
 import type { AlignRequest, AlignResult, Alphabet, AlphabetChoice, BioErrorCode, CellInfo, DistanceMatrix, DpSnapshot, ScoringSpec, Sequence, Tree, TreeNode } from '../shared/types';
 import type { DistanceModel } from '../shared/types';
-import type { MsaRequest } from '../workers/protocol';
+import type { MsaRequest } from '../shared/results';
 import { createMsaWorker, createPairwiseWorker, selectedBackend } from './index';
 import { rustOp } from './ops';
 

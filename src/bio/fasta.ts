@@ -1,24 +1,8 @@
 // FASTA parsing and writing. Nothing is silently dropped or changed: every cleanup and problem is reported as an issue.
 import type { Alphabet, Sequence } from '../shared/types';
 import { cleanSequenceText, detectAlphabet, findInvalid } from './alphabet';
-
-export type FastaIssueCode =
-  | 'no-records' | 'no-header' | 'empty-header' | 'empty-record' | 'duplicate-id' | 'invalid-characters'
-  | 'digits-removed' | 'whitespace-removed' | 'gaps-normalized' | 'comment-line' | 'undetected-alphabet' | 'low-confidence-alphabet';
-
-export interface FastaIssue {
-  severity: 'error' | 'warning' | 'info';
-  code: FastaIssueCode;
-  recordIndex: number | null; // 0-based index of the record, or null for whole-input issues
-  recordId: string | null;
-  message: string;
-  positions?: number[]; // 1-based residue positions (for invalid characters)
-}
-
-export interface ParsedFasta {
-  records: Sequence[];
-  issues: FastaIssue[];
-}
+import type { FastaIssueCode, FastaIssue, ParsedFasta } from '../shared/results';
+export type { FastaIssueCode, FastaIssue, ParsedFasta }; // moved to shared/results.ts
 
 export interface ParseOptions {
   alphabet?: Alphabet | 'auto'; // default 'auto' (detected over ALL records together)

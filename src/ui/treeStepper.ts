@@ -1,9 +1,9 @@
 // Step-through for UPGMA / neighbor-joining: shows, for each merge, the current matrix (or Q matrix), the chosen pair,
 // the formulas with the real numbers filled in, and the forest of clusters growing toward the final tree.
 import type { Tree, TreeNode } from '../shared/types';
-import type { NjJoinStep, NjStep } from '../bio/nj';
+import type { NjJoinStep, NjStep } from '../shared/results';
 import { writeNewickMany } from '../backend/api';
-import type { UpgmaStep } from '../bio/upgma';
+import type { UpgmaStep } from '../shared/results';
 import { clear, el, prefersReducedMotion } from './dom';
 import { layoutRectangular } from './treeLayout';
 import { forestAfter } from './treeSteps';
