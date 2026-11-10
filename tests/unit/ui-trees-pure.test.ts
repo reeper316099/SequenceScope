@@ -1,5 +1,6 @@
 // DOM-free logic behind the Distances and Trees views: set analysis, layouts, keyboard navigation, step forests, table sorting.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { loadReferenceData } from '../../src/backend/api';
 import { distanceMatrixFromAligned } from '../../src/bio/distance';
 import { neighborJoining } from '../../src/bio/nj';
 import { parseNewick, writeNewick } from '../../src/bio/newick';
@@ -10,35 +11,37 @@ import { cladeNodeKey, collapsibleKeys, layoutRadial, layoutRectangular, navigat
 import { forestAfter } from '../../src/ui/treeSteps';
 import { matrixOf } from '../helpers/trees';
 
+beforeAll(loadReferenceData);
+
 const nw = (s: string) => parseNewick(s).tree;
 const none = new Set<string>();
 
 describe('analyzeSet', () => {
   const dna = (n: number, extra = ''): string => Array.from({ length: n }, (_, k) => `>s${k}\nACGTACGTACGTACGTACGT${extra}`).join('\n');
-  it('suggests "aligned" only when all rows have equal length AND contain gap characters', () => {
-    expect(analyzeSet('>a\nACGT-ACGTACGTACGTACG\n>b\nACGTTACGTACGTACGTACG\n>c\nACGTTACGTACGTACG-ACG', 'auto', 'auto')).toMatchObject({ suggestedMode: 'aligned', mode: 'aligned', blocking: null });
-    expect(analyzeSet(dna(4), 'auto', 'auto')).toMatchObject({ suggestedMode: 'unaligned', mode: 'unaligned', equalLength: true });
+  it('suggests "aligned" only when all rows have equal length AND contain gap characters', async () => {
+    expect(await analyzeSet('>a\nACGT-ACGTACGTACGTACG\n>b\nACGTTACGTACGTACGTACG\n>c\nACGTTACGTACGTACG-ACG', 'auto', 'auto')).toMatchObject({ suggestedMode: 'aligned', mode: 'aligned', blocking: null });
+    expect(await analyzeSet(dna(4), 'auto', 'auto')).toMatchObject({ suggestedMode: 'unaligned', mode: 'unaligned', equalLength: true });
   });
-  it('aligned mode with unequal lengths is blocked with a message naming the sequence', () => {
-    const a = analyzeSet('>a\nACGTACGTAC\n>b\nACGTACG\n>c\nACGTACGTAC', 'auto', 'aligned');
+  it('aligned mode with unequal lengths is blocked with a message naming the sequence', async () => {
+    const a = await analyzeSet('>a\nACGTACGTAC\n>b\nACGTACG\n>c\nACGTACGTAC', 'auto', 'aligned');
     expect(a.blocking).toContain('"b" has 7 columns');
   });
-  it('gaps in unaligned mode are reported as invalid characters (with positions), not dropped', () => {
-    const a = analyzeSet('>a\nACGTACGTAC-GTACGT\n>b\nACGTACGTACGGTACGT\n>c\nACGTACGTACGGTACGA', 'auto', 'unaligned');
+  it('gaps in unaligned mode are reported as invalid characters (with positions), not dropped', async () => {
+    const a = await analyzeSet('>a\nACGTACGTAC-GTACGT\n>b\nACGTACGTACGGTACGT\n>c\nACGTACGTACGGTACGA', 'auto', 'unaligned');
     expect(a.issues.some((i) => i.code === 'invalid-characters' && i.positions?.includes(11))).toBe(true);
     expect(a.blocking).toContain('Fix the problems');
   });
-  it('empty input, a single sequence, too many sequences, and duplicate names', () => {
-    expect(analyzeSet('', 'auto', 'auto').blocking).toContain('Load or paste');
-    expect(analyzeSet(dna(1), 'auto', 'auto').blocking).toContain('at least 2');
-    expect(analyzeSet(dna(101), 'auto', 'auto').blocking).toContain('At most 100');
-    const dup = analyzeSet('>x\nACGTACGTACGTACGTACGT\n>x\nACGTACGTACGTACGTACGA\n>y\nACGTACGTACGTACGTACGC', 'auto', 'auto');
+  it('empty input, a single sequence, too many sequences, and duplicate names', async () => {
+    expect((await analyzeSet('', 'auto', 'auto')).blocking).toContain('Load or paste');
+    expect((await analyzeSet(dna(1), 'auto', 'auto')).blocking).toContain('at least 2');
+    expect((await analyzeSet(dna(101), 'auto', 'auto')).blocking).toContain('At most 100');
+    const dup = await analyzeSet('>x\nACGTACGTACGTACGTACGT\n>x\nACGTACGTACGTACGTACGA\n>y\nACGTACGTACGTACGTACGC', 'auto', 'auto');
     expect(dup.duplicateNames).toBe(true);
     expect(dup.notes.join()).toContain('unique names');
-    expect(analyzeSet(dna(2), 'auto', 'auto').notes.join()).toContain('at least 3');
+    expect((await analyzeSet(dna(2), 'auto', 'auto')).notes.join()).toContain('at least 3');
   });
-  it('uniquifyNames only renames the second and later copies', () => {
-    const r = uniquifyNames(analyzeSet('>x\nACGT\n>x\nACGT\n>y\nACGT\n>x\nACGT', 'dna', 'auto').records);
+  it('uniquifyNames only renames the second and later copies', async () => {
+    const r = uniquifyNames((await analyzeSet('>x\nACGT\n>x\nACGT\n>y\nACGT\n>x\nACGT', 'dna', 'auto')).records);
     expect(r.map((s) => s.id)).toEqual(['x', 'x_2', 'y', 'x_3']);
   });
 });

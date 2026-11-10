@@ -1,11 +1,12 @@
 // Right-hand details panel: explains the selected / current DP cell with the real numbers filled in.
-import type { CellInfo, Dp } from '../bio/pairwise';
-import { cellInfo } from '../bio/pairwise';
+import { cellInfoAsync } from '../backend/api';
+import type { DpView } from '../backend/api';
+import type { CellInfo } from '../shared/types';
 import { clear, el } from './dom';
 
 export interface DetailsPanel {
   root: HTMLElement;
-  show(dp: Dp | null, cell: { i: number; j: number } | null, context?: string): void;
+  show(dp: DpView | null, cell: { i: number; j: number } | null, context?: string): void;
 }
 
 const minus = (n: number): string => (n < 0 ? `−${Math.abs(n)}` : String(n));
@@ -34,8 +35,8 @@ export function createDetailsPanel(): DetailsPanel {
     return p;
   };
 
-  const linear = (info: Extract<CellInfo, { kind: 'linear' }>, dp: Dp): void => {
-    const g = dp.scoring.gapOpen;
+  const linear = (info: Extract<CellInfo, { kind: 'linear' }>, dp: DpView): void => {
+    const g = dp.gapOpen;
     const a = dp.strA.charAt(info.i - 1); const b = dp.strB.charAt(info.j - 1);
     body.append(
       el('p', undefined, `Cell (i = ${info.i}, j = ${info.j}): compare a${info.i} = ${a} with b${info.j} = ${b}. The scoring scheme gives s = ${fmt(info.s)}.`),
@@ -48,8 +49,8 @@ export function createDetailsPanel(): DetailsPanel {
     body.append(el('p', 'hint', info.zeroFloor ? 'Every option was 0 or negative, so the cell is 0: a local alignment never has a negative running score, and the traceback stops here.' : `Move(s) that give the maximum: ${info.chosen.join(', ')}. When several tie, the traceback prefers diagonal, then up, then left.`));
   };
 
-  const affine = (info: Extract<CellInfo, { kind: 'affine' }>, dp: Dp): void => {
-    const open = dp.scoring.gapOpen; const ext = dp.scoring.gapExtend;
+  const affine = (info: Extract<CellInfo, { kind: 'affine' }>, dp: DpView): void => {
+    const open = dp.gapOpen; const ext = dp.gapExtend;
     const a = dp.strA.charAt(info.i - 1); const b = dp.strB.charAt(info.j - 1);
     body.append(el('p', undefined, `Cell (i = ${info.i}, j = ${info.j}): a${info.i} = ${a}, b${info.j} = ${b}, s = ${fmt(info.s)}. Three scores are kept: M (a${info.i} paired with b${info.j}), X (a${info.i} against a gap), Y (b${info.j} against a gap).`));
     body.append(line('M', `max(M ${fmt(info.M.fromM)}, X ${fmt(info.M.fromX)}, Y ${fmt(info.M.fromY)}${dp.mode === 'local' ? ', 0' : ''}) + ${fmt(info.s)} = ${fmt(info.M.value)}`, true), el('p', 'hint', `from: ${info.M.chosen.join(', ') || '—'}`));
@@ -57,16 +58,24 @@ export function createDetailsPanel(): DetailsPanel {
     body.append(line('Y', `max(open from M ${fmt(info.Y.openFromM)}, open from X ${fmt(info.Y.openFromX)}, extend Y ${fmt(info.Y.extendY)}) = ${fmt(info.Y.value)}`, true), el('p', 'hint', `from: ${info.Y.chosen.join(', ') || '—'}`));
   };
 
+  let showSeq = 0;
   return {
     root,
     show(dp, cell, context) {
-      clear(body);
-      if (!dp || !cell) { help(); return; }
-      if (context !== undefined) body.append(el('p', 'phase', context));
-      const info = cellInfo(dp, cell.i, cell.j);
-      if (info.kind === 'border') body.append(el('p', undefined, `Border cell (i = ${info.i}, j = ${info.j}), value ${fmt(info.value)}.`), el('p', 'hint', info.note));
-      else if (info.kind === 'linear') linear(info, dp);
-      else affine(info, dp);
+      const mine = ++showSeq;
+      if (!dp || !cell) { clear(body); help(); return; }
+      void cellInfoAsync(dp, cell.i, cell.j).then((info) => {
+        if (mine !== showSeq) return; // a newer cell was asked for meanwhile
+        clear(body);
+        if (context !== undefined) body.append(el('p', 'phase', context));
+        if (info.kind === 'border') body.append(el('p', undefined, `Border cell (i = ${info.i}, j = ${info.j}), value ${fmt(info.value)}.`), el('p', 'hint', info.note));
+        else if (info.kind === 'linear') linear(info, dp);
+        else affine(info, dp);
+      }, (e: unknown) => {
+        if (mine !== showSeq) return;
+        clear(body);
+        body.append(el('p', 'hint', e instanceof Error ? e.message : 'Could not explain that cell.'));
+      });
     },
   };
 }

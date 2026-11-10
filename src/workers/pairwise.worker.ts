@@ -1,4 +1,5 @@
 // Runs one pairwise alignment off the UI thread and TRANSFERS the DP tables back (no copy).
+import { alignmentStats, matchLine } from '../bio/alignstats';
 import { BioError } from '../bio/errors';
 import { dpToSnapshot, fillMatrix, tracebackAll, tracebackFirst } from '../bio/pairwise';
 import { compileScoring } from '../bio/scoring';
@@ -12,7 +13,7 @@ self.onmessage = (event: MessageEvent<AlignRequest>): void => {
     const alignment = tracebackFirst(dp);
     const { alignments, capped } = tracebackAll(dp, req.enumerateCap);
     const dpSnap = dpToSnapshot(dp);
-    const value: AlignResult = { alignment, all: alignments, capped, dp: dpSnap };
+    const value: AlignResult = { alignment, all: alignments, capped, dp: dpSnap, stats: alignmentStats(alignment, sc), matchLines: alignments.map((x) => matchLine(x, sc)) };
     const reply: WorkerReply<AlignResult> = { type: 'result', value };
     const transfer: ArrayBuffer[] = dpSnap.kind === 'linear' ? [dpSnap.H.buffer as ArrayBuffer, dpSnap.P.buffer as ArrayBuffer] : [dpSnap.M.buffer as ArrayBuffer, dpSnap.X.buffer as ArrayBuffer, dpSnap.Y.buffer as ArrayBuffer, dpSnap.P.buffer as ArrayBuffer]; // safe: these typed arrays own plain ArrayBuffers (never SharedArrayBuffer)
     self.postMessage(reply, transfer);

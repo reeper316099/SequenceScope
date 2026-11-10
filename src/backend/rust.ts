@@ -4,7 +4,7 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 import type { BootstrapResult } from '../bio/bootstrap';
 import type { MsaResult } from '../bio/msa';
-import type { AlignRequest, AlignResult, DistanceMatrix, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
+import type { AlignmentStats, AlignRequest, AlignResult, DistanceMatrix, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
 import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
 import { decodeFrame } from './frame';
 import type { JobWorker } from './types';
@@ -43,6 +43,8 @@ interface AlignHeader {
   alignment: PairwiseAlignment;
   all: PairwiseAlignment[];
   capped: boolean;
+  stats: AlignmentStats;
+  matchLines: string[];
   dp: { kind: 'linear' | 'affine'; mode: 'global' | 'local'; rows: number; cols: number; score: number; ends: number[] };
   timings: RustTimings;
 }
@@ -58,7 +60,7 @@ export async function rustAlign(req: AlignRequest, onProgress?: (fraction: numbe
     h.dp.kind === 'linear'
       ? { kind: 'linear', mode: h.dp.mode, rows: h.dp.rows, cols: h.dp.cols, score: h.dp.score, ends: h.dp.ends, H: tables['H'] as Int32Array, P: tables['P'] as Uint8Array }
       : { kind: 'affine', mode: h.dp.mode, rows: h.dp.rows, cols: h.dp.cols, score: h.dp.score, ends: h.dp.ends, M: tables['M'] as Int32Array, X: tables['X'] as Int32Array, Y: tables['Y'] as Int32Array, P: tables['P'] as Uint16Array };
-  return { result: { alignment: h.alignment, all: h.all, capped: h.capped, dp }, timings: h.timings, frameBytes: buf.byteLength };
+  return { result: { alignment: h.alignment, all: h.all, capped: h.capped, dp, stats: h.stats, matchLines: h.matchLines }, timings: h.timings, frameBytes: buf.byteLength };
 }
 
 /** The JSON Rust returns for a shuffle test (scores as a plain array). */

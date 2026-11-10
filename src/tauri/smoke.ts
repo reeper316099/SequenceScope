@@ -98,6 +98,13 @@ async function basicChecks(): Promise<void> {
     // The compute commands refuse malformed requests with a typed error and tolerate cancelling an unknown job.
     const badAlign = await invoke('align_pair', { jobId: 1, request: { a: 'A' }, onProgress: new Channel() }).then(() => 'accepted', (e: unknown) => (typeof e === 'object' && e !== null && 'code' in e ? String(e.code) : 'rejected'));
     add('align_pair rejects a malformed request with code invalid-argument', badAlign === 'invalid-argument', badAlign);
+    const codeOf = (e: unknown): string => (typeof e === 'object' && e !== null && 'code' in e && typeof e.code === 'string' ? e.code : 'other');
+    const badOp = await invoke('bio_op', { request: { op: 'deleteEverything' } }).then(() => 'accepted', codeOf);
+    add('bio_op refuses an unknown operation with code invalid-argument', badOp === 'invalid-argument', badOp);
+    const badFields = await invoke('bio_op', { request: { op: 'fastaParse', text: 5 } }).then(() => 'accepted', codeOf);
+    add('bio_op refuses a known operation with wrong fields', badFields === 'invalid-argument', badFields);
+    const okOp = await invoke<{ limits: { maxTreeTaxa: number } }>('bio_op', { request: { op: 'referenceData' } }).then((r) => r.limits.maxTreeTaxa, () => -1);
+    add('bio_op answers a valid operation (reference data)', okOp === 100, String(okOp));
     add('cancel_job on an unknown job id is harmless', await invoke('cancel_job', { jobId: 424242 }).then(() => true, () => false));
     add('no CSP violations', violations.length === 0, violations.join('; '));
   } catch (e) {

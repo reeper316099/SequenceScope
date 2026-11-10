@@ -3,19 +3,18 @@ import { createDistancesWorker } from '../backend';
 import type { JobWorker } from '../backend';
 import type { Alphabet, AlphabetChoice, DistanceMatrix, DistanceModel, GapPolicy, WorkerReply } from '../shared/types';
 import { DIST_OK, DIST_SATURATED } from '../shared/types';
-import { modelsFor, toDistanceCsv, toPhylip, unusablePairs } from '../bio/distance';
 import { callout, card, toast } from './cards';
 import type { DataStore } from './dataStore';
 import { createHeatmap } from './distanceHeatmap';
 import { clear, debounce, el } from './dom';
 import { loadExampleIndex, loadExampleText } from './examples';
 import { defaultPreset, PRESETS } from './model';
-import { analyzeSet, sortOrder, uniquifyNames } from './sequenceSet';
+import { analyzeSet, countUnusablePairs, sortOrder, uniquifyNames } from './sequenceSet';
 import type { SetMode } from './sequenceSet';
 import type { AppView } from './view';
 import { MAX_OPEN_FILE_BYTES } from '../shared/types';
 import type { DistancesRequest } from '../workers/protocol';
-import { writeFasta } from '../bio/fasta';
+import { distanceExportAsync, modelsFor, writeFastaAsync } from '../backend/api';
 
 const MODEL_TEXT: Record<DistanceModel, { label: string; text: string }> = {
   p: { label: 'p-distance (raw proportion of differing sites)', text: 'The fraction of compared sites that differ. Simple and always defined, but it underestimates real change between distant sequences, because several substitutions at one site look like one.' },
@@ -92,9 +91,12 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
 
   // ---- logic ----
   /** Re-analyses the text and decides which controls apply. */
-  const analyze = (): void => {
+  let analyzeSeq = 0;
+  const analyze = async (): Promise<void> => {
+    const mine = ++analyzeSeq;
     const s = store.state;
-    const a = analyzeSet(s.text, s.alphabetChoice, s.modeChoice);
+    const a = await analyzeSet(s.text, s.alphabetChoice, s.modeChoice);
+    if (mine !== analyzeSeq) return; // a newer analysis is already on its way
     store.update({ analysis: a });
     badge.textContent = a.records.length === 0 ? 'empty' : `${a.records.length} sequences · ${a.alphabet} · ${a.mode}${s.modeChoice === 'auto' ? ' (auto)' : ''}`;
     clear(messages);
@@ -166,8 +168,8 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
     else if (status.kind === 'error') statusHost.append(callout('error', status.message ?? 'Failed.'));
     const m = store.state.matrix;
     if (m && status.kind === 'done') {
-      const bad = unusablePairs(m);
-      if (bad.length > 0) statusHost.append(callout('warn', `${bad.length} pair(s) have no usable distance (saturated or no comparable sites, marked in the heatmap and table). Trees cannot be built until these are resolved: try the p-distance or remove the most divergent sequences.`));
+      const bad = countUnusablePairs(m);
+      if (bad > 0) statusHost.append(callout('warn', `${bad} pair(s) have no usable distance (saturated or no comparable sites, marked in the heatmap and table). Trees cannot be built until these are resolved: try the p-distance or remove the most divergent sequences.`));
       else statusHost.append(callout('info', `${m.n} sequences, ${(m.n * (m.n - 1)) / 2} pairs, model: ${m.model}, gap policy: ${m.gapPolicy}.`));
     }
     csvBtn.disabled = phyBtn.disabled = !m;
@@ -201,17 +203,17 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
   function loadText(text: string, mode: SetMode | 'auto', fromMsa = false): void {
     store.update({ text, modeChoice: mode, fromMsa });
     area.value = text;
-    analyze();
+    void analyze();
   }
 
   // ---- events ----
-  area.addEventListener('input', () => { store.update({ text: area.value }); analyze(); });
-  alphaSel.addEventListener('change', () => { store.update({ alphabetChoice: alphaSel.value as AlphabetChoice }); analyze(); }); // safe: the select only offers AlphabetChoice values
-  modeSel.addEventListener('change', () => { store.update({ modeChoice: modeSel.value as SetMode | 'auto' }); analyze(); }); // safe: the select only offers these values
-  modelSel.addEventListener('change', () => { store.update({ model: modelSel.value as DistanceModel }); analyze(); }); // safe: the select only offers DistanceModel values
-  policySel.addEventListener('change', () => { store.update({ gapPolicy: policySel.value as GapPolicy }); analyze(); }); // safe: the select only offers GapPolicy values
-  presetSel.addEventListener('change', () => { store.update({ presetId: presetSel.value }); analyze(); });
-  fixNames.addEventListener('click', () => { const a = store.state.analysis; if (a) { loadText(writeFasta(uniquifyNames(a.records), 1_000_000), store.state.modeChoice); toast('Renamed duplicate names by adding _2, _3, … (shown in the box).'); } });
+  area.addEventListener('input', () => { store.update({ text: area.value }); void analyze(); });
+  alphaSel.addEventListener('change', () => { store.update({ alphabetChoice: alphaSel.value as AlphabetChoice }); void analyze(); }); // safe: the select only offers AlphabetChoice values
+  modeSel.addEventListener('change', () => { store.update({ modeChoice: modeSel.value as SetMode | 'auto' }); void analyze(); }); // safe: the select only offers these values
+  modelSel.addEventListener('change', () => { store.update({ model: modelSel.value as DistanceModel }); void analyze(); }); // safe: the select only offers DistanceModel values
+  policySel.addEventListener('change', () => { store.update({ gapPolicy: policySel.value as GapPolicy }); void analyze(); }); // safe: the select only offers GapPolicy values
+  presetSel.addEventListener('change', () => { store.update({ presetId: presetSel.value }); void analyze(); });
+  fixNames.addEventListener('click', () => { const a = store.state.analysis; if (a) void writeFastaAsync(uniquifyNames(a.records), 1_000_000).then((t) => { loadText(t, store.state.modeChoice); toast('Renamed duplicate names by adding _2, _3, … (shown in the box).'); }); });
   cancelBtn.addEventListener('click', () => { worker?.terminate(); worker = null; status = { kind: 'idle' }; store.update({ matrix: null }); showStatus(); toast('Cancelled.'); });
   treeBtn.addEventListener('click', goToTrees);
   openBtn.addEventListener('click', () => {
@@ -223,8 +225,8 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
     const r = await window.sequenceScope.saveFile({ suggestedName: name, extensions: [ext], content, encoding: 'utf8' });
     if (r.ok) toast(`Saved ${r.path}`); else if (r.reason !== 'cancelled') toast(r.message);
   };
-  csvBtn.addEventListener('click', () => { const m = store.state.matrix; if (m) void save('distances.csv', 'csv', toDistanceCsv(m)); });
-  phyBtn.addEventListener('click', () => { const m = store.state.matrix; if (m) { try { void save('distances.phy', 'phy', toPhylip(m)); } catch (e) { toast(e instanceof Error ? e.message : 'Cannot export: some distances are unusable.'); } } });
+  csvBtn.addEventListener('click', () => { const m = store.state.matrix; if (m) void distanceExportAsync(m, 'csv').then((text) => save('distances.csv', 'csv', text)); });
+  phyBtn.addEventListener('click', () => { const m = store.state.matrix; if (m) void distanceExportAsync(m, 'phylip').then((text) => save('distances.phy', 'phy', text), (e: unknown) => toast(e instanceof Error ? e.message : 'Cannot export: some distances are unusable.')); });
 
   // Example list (each set; sets with a MAFFT-aligned copy also appear as "aligned").
   const exampleItems: { label: string; id: string; aligned: boolean }[] = [];
@@ -243,6 +245,6 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
     void loadExampleText(it.id, it.aligned).then((t) => loadText(t, it.aligned ? 'aligned' : 'unaligned')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.'));
   });
 
-  analyze();
+  void analyze();
   return { id: 'distances', title: 'Distances', root, loadText, handleAction(a) { if (a === 'open-fasta') { openBtn.click(); return true; } return false; } };
 }

@@ -1,8 +1,8 @@
 // Pure analysis of a pasted/loaded FASTA SET for the Distances and Trees views (aligned or unaligned, caps, names).
+import { DIST_OK } from '../shared/types';
 import type { Alphabet, AlphabetChoice, DistanceMatrix, Sequence } from '../shared/types';
-import { parseFasta } from '../bio/fasta';
+import { limits, parseFastaAsync } from '../backend/api';
 import type { FastaIssue } from '../bio/fasta';
-import { MAX_TREE_TAXA } from '../bio/distance';
 
 export type SetMode = 'aligned' | 'unaligned';
 
@@ -23,15 +23,15 @@ export interface AnalyzedSet {
 }
 
 /** Parses and checks a set of sequences. `mode` 'auto' uses the suggestion. Never throws. */
-export function analyzeSet(text: string, choice: AlphabetChoice, mode: SetMode | 'auto'): AnalyzedSet {
-  const first = parseFasta(text, { alphabet: choice, allowGaps: true });
+export async function analyzeSet(text: string, choice: AlphabetChoice, mode: SetMode | 'auto'): Promise<AnalyzedSet> {
+  const first = await parseFastaAsync(text, { alphabet: choice, allowGaps: true });
   const records = first.records;
   const hasGaps = records.some((r) => r.residues.includes('-'));
   const equalLength = records.length > 0 && records.every((r) => r.residues.length === (records[0]?.residues.length ?? -1));
   const suggestedMode: SetMode = equalLength && hasGaps ? 'aligned' : 'unaligned';
   const finalMode: SetMode = mode === 'auto' ? suggestedMode : mode;
   // In unaligned mode gap characters are not allowed: re-parse strictly so they are reported with positions.
-  const parsed = finalMode === 'unaligned' && hasGaps ? parseFasta(text, { alphabet: choice, allowGaps: false }) : first;
+  const parsed = finalMode === 'unaligned' && hasGaps ? await parseFastaAsync(text, { alphabet: choice, allowGaps: false }) : first;
   const issues = parsed.issues;
   const alphabet: Alphabet | 'unknown' = issues.some((i) => i.code === 'undetected-alphabet') ? 'unknown' : (records[0]?.alphabet ?? 'unknown');
   const names = records.map((r) => r.id);
@@ -40,7 +40,7 @@ export function analyzeSet(text: string, choice: AlphabetChoice, mode: SetMode |
   let blocking: string | null = null;
   if (records.length === 0) blocking = text.trim() === '' ? 'Load or paste a set of sequences (FASTA) to begin.' : (issues.find((i) => i.severity === 'error')?.message ?? 'No sequences found.');
   else if (issues.some((i) => i.severity === 'error')) blocking = 'Fix the problems listed below first (nothing is changed silently).';
-  else if (records.length > MAX_TREE_TAXA) blocking = `At most ${MAX_TREE_TAXA} sequences are supported (this set has ${records.length}).`;
+  else if (records.length > limits().maxTreeTaxa) blocking = `At most ${limits().maxTreeTaxa} sequences are supported (this set has ${records.length}).`;
   else if (records.length < 2) blocking = 'Distances need at least 2 sequences.';
   else if (finalMode === 'aligned' && !equalLength) {
     const len0 = records[0]?.residues.length ?? 0;
@@ -51,6 +51,13 @@ export function analyzeSet(text: string, choice: AlphabetChoice, mode: SetMode |
   if (blocking === null && duplicateNames) notes.push('Some names are used twice. Distances work, but tree building needs unique names.');
   if (blocking === null && finalMode === 'unaligned' && alphabet === 'unknown') blocking = 'Could not tell DNA, RNA, or protein; choose the alphabet manually.';
   return { records, issues, alphabet, equalLength, hasGaps, suggestedMode, mode: finalMode, duplicateNames, blocking, notes };
+}
+
+/** How many pairs (i < j) have no usable distance (saturated, or no comparable sites). */
+export function countUnusablePairs(m: DistanceMatrix): number {
+  let count = 0;
+  for (let i = 0; i < m.n; i++) for (let j = i + 1; j < m.n; j++) if (m.status[i * m.n + j] !== DIST_OK) count++;
+  return count;
 }
 
 /** Renames duplicate names by appending _2, _3, … (an explicit user action; never done silently). */

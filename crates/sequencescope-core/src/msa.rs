@@ -79,6 +79,12 @@ pub struct MsaResult {
 
 /// Sum-of-pairs score of an alignment: each pair of rows is scored with the independent column-by-column scorer.
 pub fn sum_of_pairs_score(rows: &[String], scoring: &CompiledScoring) -> Result<i64, BioError> {
+    if let Some(first) = rows.first() {
+        let width = js_len(first);
+        if rows.iter().any(|r| js_len(r) != width) {
+            return Err(unequal_rows("Alignment rows must have equal length.".to_string()));
+        }
+    }
     let chars: Vec<Vec<char>> = rows.iter().map(|r| r.chars().collect()).collect();
     let mut total = 0i64;
     for i in 0..chars.len() {
@@ -751,6 +757,14 @@ mod tests {
             e.message,
             "Merging two profiles of 5001 and 5000 columns needs 25,015,002 matrix cells; the limit is 25,010,001."
         );
+    }
+
+    #[test]
+    fn unequal_rows_are_refused_by_the_sum_of_pairs_scorer() {
+        let rows = vec!["AC".to_string(), "A".to_string()];
+        let e = sum_of_pairs_score(&rows, &dna()).expect_err("unequal");
+        assert_eq!(e.message, "Alignment rows must have equal length.");
+        assert_eq!(sum_of_pairs_score(&[], &dna()).expect("empty"), 0);
     }
 
     #[test]

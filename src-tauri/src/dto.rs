@@ -4,6 +4,7 @@
 //! in range, with the SAME error messages the TypeScript code produces.
 
 use crate::jobs::JobError;
+use sequencescope_core::alignstats::AlignmentStats;
 use sequencescope_core::bootstrap::{BootstrapInput, BootstrapResult, TreeMethod};
 use sequencescope_core::distance::{DistanceModel, GapPolicy};
 use sequencescope_core::error::{BioError, BioErrorCode};
@@ -196,13 +197,54 @@ pub struct TimingsDto {
     pub traceback_ms: f64,
 }
 
+/// Alignment statistics, shaped like the TypeScript `AlignmentStats`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlignmentStatsDto {
+    pub length: usize,
+    pub identities: usize,
+    pub mismatches: usize,
+    pub positives: usize,
+    pub gap_columns: usize,
+    pub gap_opens: usize,
+    pub gaps_in_a: usize,
+    pub gaps_in_b: usize,
+    pub ambiguous_columns: usize,
+    pub identity_pct: Option<f64>,
+    pub similarity_pct: Option<f64>,
+    pub aligned_columns: usize,
+}
+
+impl From<&AlignmentStats> for AlignmentStatsDto {
+    /// Copies the statistics into their JSON form.
+    fn from(s: &AlignmentStats) -> Self {
+        Self {
+            length: s.length,
+            identities: s.identities,
+            mismatches: s.mismatches,
+            positives: s.positives,
+            gap_columns: s.gap_columns,
+            gap_opens: s.gap_opens,
+            gaps_in_a: s.gaps_in_a,
+            gaps_in_b: s.gaps_in_b,
+            ambiguous_columns: s.ambiguous_columns,
+            identity_pct: s.identity_pct,
+            similarity_pct: s.similarity_pct,
+            aligned_columns: s.aligned_columns,
+        }
+    }
+}
+
 /// The JSON header of the binary result frame.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AlignHeaderDto {
     pub alignment: AlignmentDto,
     pub all: Vec<AlignmentDto>,
     pub capped: bool,
     pub dp: DpMetaDto,
+    pub stats: AlignmentStatsDto,
+    pub match_lines: Vec<String>,
     pub timings: TimingsDto,
 }
 

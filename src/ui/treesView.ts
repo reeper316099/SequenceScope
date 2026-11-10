@@ -3,12 +3,10 @@
 import { createBootstrapWorker } from '../backend';
 import type { JobWorker } from '../backend';
 import type { BootstrapResult } from '../bio/bootstrap';
-import { MAX_REPLICATES } from '../bio/bootstrap';
+import { buildTreesAsync, editTreeAsync, limits, parseNewickAsync, writeNewickAsync } from '../backend/api';
+import type { TreeEdit } from '../backend/api';
 import { BioError } from '../bio/errors';
-import { neighborJoining } from '../bio/nj';
-import { parseNewick, writeNewick, NewickError } from '../bio/newick';
-import { assertValidLeaves, hasNegativeBranches, isLeaf, leafNames, midpointRoot, preorder, rerootAbove, rerootAtLeaf, rotateNode, totalLength } from '../bio/tree';
-import { upgma } from '../bio/upgma';
+import { hasNegativeBranches, isLeaf, leafNames, preorder, totalLength } from '../bio/tree';
 import type { Tree, WorkerReply } from '../shared/types';
 import type { BootstrapRequest } from '../workers/protocol';
 import { callout, card, toast } from './cards';
@@ -34,7 +32,7 @@ export interface TreesProjectState {
 }
 
 /** Builds the Trees view around the shared data store. */
-export function createTreesView(store: DataStore): AppView & { getState(): TreesProjectState; setState(s: TreesProjectState): void; importNewickText(text: string, label?: string): boolean; setMethod(m: 'upgma' | 'nj'): void } {
+export function createTreesView(store: DataStore): AppView & { getState(): Promise<TreesProjectState>; setState(s: TreesProjectState): Promise<void>; importNewickText(text: string, label?: string): Promise<boolean>; setMethod(m: 'upgma' | 'nj'): void } {
   const root = el('div', 'view view-trees');
   root.append(callout('warn', HONESTY));
   root.firstElementChild?.classList.add('honesty-banner');
@@ -181,22 +179,30 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
   };
 
   /** Recomputes both trees from the matrix (cheap) and shows the chosen one. */
-  const rebuild = (): void => {
+  let rebuildSeq = 0;
+  const rebuild = async (): Promise<void> => {
+    const mine = ++rebuildSeq;
     const s = store.state;
+    const a = s.analysis;
+    let results: Awaited<ReturnType<typeof buildTreesAsync>> | null = null;
+    let failure: unknown = null;
+    if (s.matrix && a) {
+      try { results = await buildTreesAsync(s.matrix); } catch (e) { failure = e; }
+      if (mine !== rebuildSeq) return; // the matrix changed again while the trees were being built
+    }
     clear(srcStatus);
     built.upgma = undefined; built.nj = undefined; buildError = null;
-    const a = s.analysis;
     if (!s.matrix || !a) {
       srcStatus.append(callout('info', a?.blocking ?? 'Load a sequence set in the Distances view first (or import a Newick tree below to view and compare it).'));
       stepper.setResult(null);
       if (imported.length === 0 && !bootTree) showTree(null, true);
       renderBoot(); refreshCompare(); return;
     }
-    try {
-      built.upgma = { method: 'upgma', ...upgma(s.matrix) };
-      built.nj = { method: 'nj', ...neighborJoining(s.matrix) };
-    } catch (e) {
-      buildError = e instanceof BioError ? e.message : 'The tree could not be built.';
+    if (results !== null) {
+      built.upgma = { method: 'upgma', ...results.upgma };
+      built.nj = { method: 'nj', ...results.nj };
+    } else {
+      buildError = failure instanceof BioError ? failure.message : 'The tree could not be built.';
       srcStatus.append(callout('error', buildError));
       stepper.setResult(null);
       showTree(imported.at(-1)?.tree ?? null, false); renderBoot(); return;
@@ -221,7 +227,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     showTree(r.tree, true);
   };
   methodSel.addEventListener('change', () => { method = methodSel.value === 'upgma' ? 'upgma' : 'nj'; pick(); renderBoot(); });
-  store.subscribe((st) => { if (st.matrix !== lastMatrix) { lastMatrix = st.matrix; rebuild(); } });
+  store.subscribe((st) => { if (st.matrix !== lastMatrix) { lastMatrix = st.matrix; void rebuild(); } });
   let lastMatrix: typeof store.state.matrix = null;
 
   // viewer toolbar
@@ -231,15 +237,15 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     const kind: LayoutKind = v === 'radial' ? 'radial' : 'rect';
     viewer.setLayoutKind(kind);
   });
-  const edit = (fn: (t: Tree) => Tree): void => {
+  const edit = (change: TreeEdit): void => {
     const t = viewer.getTree();
     if (!t) return;
-    try { const next = fn(t); showTree(next, false); } catch (e) { toast(e instanceof BioError ? e.message : 'That edit is not possible here.'); }
+    void editTreeAsync(t, change).then((next) => showTree(next, false), (e: unknown) => toast(e instanceof BioError ? e.message : 'That edit is not possible here.'));
   };
-  rotateBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n) edit((t) => rotateNode(t, n.index)); });
-  rerootBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n) edit((t) => rerootAbove(t, n.index, 0.5)); });
-  outgroupBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n?.isLeaf) edit((t) => rerootAtLeaf(t, n.label)); });
-  midpointBtn.addEventListener('click', () => edit((t) => midpointRoot(t)));
+  rotateBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n) edit({ kind: 'rotate', index: n.index }); });
+  rerootBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n) edit({ kind: 'rerootAbove', index: n.index, fraction: 0.5 }); });
+  outgroupBtn.addEventListener('click', () => { const n = viewer.getSelected(); if (n?.isLeaf) edit({ kind: 'rerootAtLeaf', leaf: n.label }); });
+  midpointBtn.addEventListener('click', () => edit({ kind: 'midpoint' }));
   resetBtn.addEventListener('click', () => { if (original) showTree(original, false); });
   collapseBtn.addEventListener('click', () => viewer.toggleCollapseSelected());
   expandAllBtn.addEventListener('click', () => viewer.expandAll());
@@ -256,30 +262,29 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     if (r.ok) toast(`Saved ${r.path}`); else if (r.reason !== 'cancelled') toast(r.message);
   };
   /** Parses and shows a Newick tree; returns false (and explains why) if it is malformed. */
-  function importNewickText(text: string, label = 'Imported tree'): boolean {
+  async function importNewickText(text: string, label = 'Imported tree'): Promise<boolean> {
     clear(newickMsg);
     try {
-      const p = parseNewick(text);
-      assertValidLeaves(p.tree);
+      const p = await parseNewickAsync(text, true);
       imported.push({ label, tree: p.tree });
       showTree(p.tree, true);
       if (p.extraTrees > 0) newickMsg.append(callout('warn', `The input contains ${p.extraTrees + 1} trees; only the first is shown.`));
       newickMsg.append(callout('info', `Imported ${leafNames(p.tree).length} taxa. Support values (numeric internal labels) are shown on the branches.`));
       return true;
     } catch (e) {
-      newickMsg.append(callout('error', e instanceof NewickError || e instanceof BioError ? e.message : 'Could not read that Newick tree.'));
+      newickMsg.append(callout('error', e instanceof BioError ? e.message : 'Could not read that Newick tree.'));
       return false;
     }
   }
-  importBtn.addEventListener('click', () => { void window.sequenceScope.openFile('newick').then((r) => { if (r.ok) importNewickText(r.text, `Imported: ${r.name}`); else if (r.reason !== 'cancelled') toast(r.message); }); });
-  pasteBtn.addEventListener('click', () => { importNewickText(pasteArea.value); });
-  exportNwk.addEventListener('click', () => { const t = viewer.getTree(); if (t) void save('tree.nwk', 'nwk', writeNewick(t) + '\n'); });
-  copyNwk.addEventListener('click', () => { const t = viewer.getTree(); if (t) void window.sequenceScope.copyText(writeNewick(t)).then((r) => toast(r.ok ? 'Newick copied to the clipboard.' : r.message)); });
+  importBtn.addEventListener('click', () => { void window.sequenceScope.openFile('newick').then((r) => { if (r.ok) void importNewickText(r.text, `Imported: ${r.name}`); else if (r.reason !== 'cancelled') toast(r.message); }); });
+  pasteBtn.addEventListener('click', () => { void importNewickText(pasteArea.value); });
+  exportNwk.addEventListener('click', () => { const t = viewer.getTree(); if (t) void writeNewickAsync(t).then((text) => save('tree.nwk', 'nwk', text + '\n')); });
+  copyNwk.addEventListener('click', () => { const t = viewer.getTree(); if (t) void writeNewickAsync(t).then((text) => window.sequenceScope.copyText(text)).then((r) => toast(r.ok ? 'Newick copied to the clipboard.' : r.message)); });
   exportSvg.addEventListener('click', () => { const s = viewer.toSvg(); if (s) void save('tree.svg', 'svg', s); });
   exportPng.addEventListener('click', () => { void viewer.toPng().then((u) => { if (u) void save('tree.png', 'png', u.split(',')[1] ?? '', 'base64'); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not export the PNG.')); });
 
   // ---- bootstrap ----
-  const repIn = el('input', undefined, undefined, { type: 'number', min: 1, max: MAX_REPLICATES, step: 1, value: 100, 'aria-label': 'Number of bootstrap replicates' });
+  const repIn = el('input', undefined, undefined, { type: 'number', min: 1, max: limits().maxReplicates, step: 1, value: 100, 'aria-label': 'Number of bootstrap replicates' });
   const seedIn = el('input', undefined, undefined, { type: 'number', min: 0, max: 4294967295, step: 1, value: DEFAULT_BOOT_SEED, 'aria-label': 'Bootstrap random seed' });
   const newSeed = b('New seed', 'Pick a seed from the clock'); newSeed.addEventListener('click', () => { seedIn.value = String((Date.now() ^ (performance.now() * 1000)) >>> 0); });
   const runBtn = el('button', 'btn btn-primary', 'Run bootstrap', { type: 'button' });
@@ -287,7 +292,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
   const bootProgress = el('progress', undefined, undefined, { max: 1, value: 0 });
   const bootStatus = el('div', 'status-host', undefined, { 'aria-live': 'polite' });
   const bootResult = el('div', 'boot-result');
-  const f1 = el('label', 'field narrow'); f1.append(el('span', 'field-label', `Replicates (max ${MAX_REPLICATES})`), repIn);
+  const f1 = el('label', 'field narrow'); f1.append(el('span', 'field-label', `Replicates (max ${limits().maxReplicates})`), repIn);
   const f2 = el('label', 'field narrow'); f2.append(el('span', 'field-label', 'Seed'), seedIn);
   const bootRow = el('div', 'row'); bootRow.append(f1, f2, newSeed, runBtn, cancelBoot);
   const bootControls = el('div', 'boot-controls'); bootControls.append(bootRow, bootProgress);
@@ -330,7 +335,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     const a = s.analysis;
     if (!s.alignedRows || !a || !s.matrix || a.alphabet === 'unknown') return;
     const replicates = Number(repIn.value); const seed = Number(seedIn.value);
-    if (!Number.isInteger(replicates) || replicates < 1 || replicates > MAX_REPLICATES) { boot = { status: 'error', message: `The number of replicates must be a whole number from 1 to ${MAX_REPLICATES}.` }; renderBoot(); return; }
+    if (!Number.isInteger(replicates) || replicates < 1 || replicates > limits().maxReplicates) { boot = { status: 'error', message: `The number of replicates must be a whole number from 1 to ${limits().maxReplicates}.` }; renderBoot(); return; }
     if (!Number.isInteger(seed) || seed < 0 || seed > 4294967295) { boot = { status: 'error', message: 'The seed must be a whole number from 0 to 4294967295.' }; renderBoot(); return; }
     bootWorker?.terminate();
     bootWorker = createBootstrapWorker();
@@ -351,14 +356,14 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
   });
   cancelBoot.addEventListener('click', () => { bootWorker?.terminate(); bootWorker = null; boot = { status: 'cancelled' }; renderBoot(); });
 
-  rebuild();
+  void rebuild();
   showSelection(null);
   return {
     id: 'trees', title: 'Trees', root,
     importNewickText,
     setMethod(m) { method = m; pick(); renderBoot(); },
-    getState: () => ({ method, seed: Number(seedIn.value) || DEFAULT_BOOT_SEED, replicates: Number(repIn.value) || 100, importedNewick: imported.length > 0 ? writeNewick((imported.at(-1) as { tree: Tree }).tree) : null }),
-    setState(st) { method = st.method; repIn.value = String(st.replicates); seedIn.value = String(st.seed); if (st.importedNewick) importNewickText(st.importedNewick, 'Imported tree (from project)'); pick(); },
+    getState: async () => ({ method, seed: Number(seedIn.value) || DEFAULT_BOOT_SEED, replicates: Number(repIn.value) || 100, importedNewick: imported.length > 0 ? await writeNewickAsync((imported.at(-1) as { tree: Tree }).tree) : null }),
+    async setState(st) { method = st.method; repIn.value = String(st.replicates); seedIn.value = String(st.seed); if (st.importedNewick) await importNewickText(st.importedNewick, 'Imported tree (from project)'); pick(); },
     onShow() { renderBoot(); refreshCompare(); },
     handleAction(a) {
       if (a === 'open-newick') { importBtn.click(); return true; }

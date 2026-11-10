@@ -2,9 +2,7 @@
 // disagreeing branches marked in red.
 import type { Tree } from '../shared/types';
 import { BioError } from '../bio/errors';
-import { cladeKey, isLeaf, nontrivialSplits, preorder, leafNames } from '../bio/tree';
-import { robinsonFoulds } from '../bio/treecompare';
-import type { RfResult } from '../bio/treecompare';
+import { compareTreesAsync } from '../backend/api';
 import { callout, card } from './cards';
 import { clear, el } from './dom';
 import { createTreeViewer } from './treeView';
@@ -19,20 +17,6 @@ export interface CompareView {
   root: HTMLElement;
   /** Updates the list of trees that can be compared. */
   setTrees(list: readonly NamedTree[]): void;
-}
-
-/** Pre-order indexes of the branches whose split does NOT occur in `other` (non-trivial splits only). */
-export function uniqueBranches(tree: Tree, other: Tree): Set<number> {
-  const theirs = nontrivialSplits(other).splits;
-  const all = leafNames(tree);
-  const out = new Set<number>();
-  preorder(tree).forEach((n, idx) => {
-    if (idx === 0 || isLeaf(n)) return;
-    const leaves = leafNames(n);
-    if (leaves.length < 2 || leaves.length > all.length - 2) return;
-    if (!theirs.has(cladeKey(leaves, all))) out.add(idx);
-  });
-  return out;
 }
 
 /** Builds the compare card. */
@@ -59,23 +43,30 @@ export function createCompareView(): CompareView {
     return d;
   };
 
-  const refresh = (): void => {
-    clear(summary);
+  let refreshSeq = 0;
+  const refresh = async (): Promise<void> => {
+    const mine = ++refreshSeq;
     const a = list.find((t) => t.id === selA.value); const b = list.find((t) => t.id === selB.value);
-    if (!a || !b) { summary.append(callout('info', 'Build at least two trees (for example UPGMA and neighbor-joining) or import a Newick tree to compare.')); vA.setTree(null); vB.setTree(null); return; }
-    let rf: RfResult;
-    try { rf = robinsonFoulds(a.tree, b.tree); } catch (e) {
+    if (!a || !b) {
+      clear(summary); summary.append(callout('info', 'Build at least two trees (for example UPGMA and neighbor-joining) or import a Newick tree to compare.')); vA.setTree(null); vB.setTree(null); return; }
+    let cmp: Awaited<ReturnType<typeof compareTreesAsync>>;
+    try { cmp = await compareTreesAsync(a.tree, b.tree); } catch (e) {
+      if (mine !== refreshSeq) return; // a newer comparison was asked for meanwhile
+      clear(summary);
       summary.append(callout('error', e instanceof BioError ? e.message : 'These trees cannot be compared.'));
       vA.setTree(a.tree); vB.setTree(b.tree); return;
     }
+    if (mine !== refreshSeq) return;
+    clear(summary);
+    const rf = cmp.rf;
     summary.append(
       callout(rf.distance === 0 ? 'info' : 'warn', rf.distance === 0 ? `Robinson–Foulds distance 0: "${a.label}" and "${b.label}" have the same unrooted topology (${rf.leafCount} taxa, ${rf.shared.length} shared internal splits).` : `Robinson–Foulds distance ${rf.distance} (largest possible for these trees: ${rf.max}). ${rf.shared.length} splits are shared; ${rf.onlyInA.length} only in "${a.label}", ${rf.onlyInB.length} only in "${b.label}".`),
       listSplits(`Splits only in ${a.label}`, rf.onlyInA), listSplits(`Splits only in ${b.label}`, rf.onlyInB),
     );
     vA.setTree(a.tree); vB.setTree(b.tree);
-    vA.setMarked(uniqueBranches(a.tree, b.tree)); vB.setMarked(uniqueBranches(b.tree, a.tree));
+    vA.setMarked(new Set(cmp.uniqueA)); vB.setMarked(new Set(cmp.uniqueB));
   };
-  selA.addEventListener('change', refresh); selB.addEventListener('change', refresh);
+  selA.addEventListener('change', () => void refresh()); selB.addEventListener('change', () => void refresh());
 
   return {
     root,
@@ -85,7 +76,7 @@ export function createCompareView(): CompareView {
       for (const s of [selA, selB]) { clear(s); for (const t of next) s.append(el('option', undefined, t.label, { value: t.id })); }
       selA.value = next.some((t) => t.id === keepA) ? keepA : (next[0]?.id ?? '');
       selB.value = next.some((t) => t.id === keepB) ? keepB : (next[1]?.id ?? next[0]?.id ?? '');
-      refresh();
+      void refresh();
     },
   };
 }

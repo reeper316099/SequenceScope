@@ -4,12 +4,14 @@
 //! unit-tested directly; the `#[tauri::command]` functions below only connect them to the page.
 
 use crate::dto::{
-    AlignHeaderDto, AlignRequestDto, AlignmentDto, BootstrapRequestDto, BootstrapResultDto, DistancesRequestDto,
-    DpMetaDto, MatrixHeaderDto, MsaRequestDto, MsaResultDto, ProgressDto, ShuffleRequestDto, ShuffleSummaryDto,
-    TimingsDto, parse_alphabet, parse_guide, parse_mode, parse_model, parse_policy, parse_request,
+    AlignHeaderDto, AlignRequestDto, AlignmentDto, AlignmentStatsDto, BootstrapRequestDto, BootstrapResultDto,
+    DistancesRequestDto, DpMetaDto, MatrixHeaderDto, MsaRequestDto, MsaResultDto, ProgressDto, ShuffleRequestDto,
+    ShuffleSummaryDto, TimingsDto, parse_alphabet, parse_guide, parse_mode, parse_model, parse_policy, parse_request,
 };
 use crate::frame::{Table, encode_frame};
 use crate::jobs::{JobError, Jobs};
+use crate::ops::{OpRequest, run_op};
+use sequencescope_core::alignstats::{alignment_stats, match_line};
 use sequencescope_core::bootstrap::bootstrap_threads;
 use sequencescope_core::distance::{distance_matrix_from_aligned, pairwise_distance_matrix};
 use sequencescope_core::msa::progressive_align;
@@ -46,6 +48,12 @@ pub fn run_align(
     let first = traceback_first(&dp);
     let all = traceback_all(&dp, req.cap()?)?; // the cap is checked after the fill, like the TypeScript worker
     let traceback_ms = started.elapsed().as_secs_f64() * 1000.0;
+    let stats = alignment_stats(&first, &scoring)?;
+    let match_lines = all
+        .alignments
+        .iter()
+        .map(|a| match_line(a, &scoring))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let Dp {
         mode,
@@ -80,6 +88,8 @@ pub fn run_align(
             score,
             ends,
         },
+        stats: AlignmentStatsDto::from(&stats),
+        match_lines,
         timings: TimingsDto { fill_ms, traceback_ms },
     };
     let json = serde_json::to_vec(&header)
@@ -292,6 +302,13 @@ pub async fn msa_job(
     let result = on_worker_thread(move || run_msa(&req, &cancel, &mut throttled(on_progress))).await;
     jobs.finish(job_id);
     result
+}
+
+/// Runs one small calculation (reference data, FASTA, and so on; see ops.rs) and returns its result as JSON.
+#[tauri::command]
+pub async fn bio_op(request: Value) -> Result<Value, JobError> {
+    let req: OpRequest = parse_request(request)?;
+    on_worker_thread(move || run_op(req)).await
 }
 
 /// Asks a running job to stop. Safe to call for a job that already finished.

@@ -155,12 +155,45 @@ export interface AlignRequest {
   enumerateCap: number;
 }
 
+export interface AlignmentStats {
+  length: number; // alignment columns
+  identities: number; // columns with the same STANDARD residue in both rows
+  mismatches: number; // aligned residue pairs that are not identities
+  positives: number; // aligned non-identical pairs with a positive score (matrix scoring only meaningful)
+  gapColumns: number;
+  gapOpens: number; // number of gap runs
+  gapsInA: number; // gap characters in row A
+  gapsInB: number;
+  ambiguousColumns: number; // aligned pairs involving an ambiguity code (never counted as identity)
+  identityPct: number | null; // identities / length * 100 (null for an empty alignment)
+  similarityPct: number | null; // (identities + positives) / length * 100 (null if length 0)
+  alignedColumns: number; // columns without a gap
+}
+
+/** Cell inspection data for the details panel: the candidate values behind one DP cell and the move(s) chosen. */
+export type CellInfo =
+  | { kind: 'border'; i: number; j: number; value: number; note: string }
+  | { kind: 'linear'; i: number; j: number; s: number; diag: number; up: number; left: number; zeroFloor: boolean; value: number; chosen: ('diagonal' | 'up' | 'left')[] }
+  | {
+      kind: 'affine'; i: number; j: number; s: number;
+      /** M: best of the three states at (i-1,j-1) [+ fresh start for local], plus s. */
+      M: { fromM: number; fromX: number; fromY: number; startFresh: boolean; value: number; chosen: string[] };
+      /** X: gap column consuming a_i: open from M/Y, or extend X. */
+      X: { openFromM: number; extendX: number; openFromY: number; value: number; chosen: string[] };
+      /** Y: gap column consuming b_j: open from M/X, or extend Y. */
+      Y: { openFromM: number; openFromX: number; extendY: number; value: number; chosen: string[] };
+    };
+
 /** Worker result: the preferred alignment, co-optimal alignments (capped), and the DP tables for the matrix view. */
 export interface AlignResult {
   alignment: PairwiseAlignment;
   all: PairwiseAlignment[];
   capped: boolean;
   dp: DpSnapshot;
+  /** Identity, similarity and gap statistics of `alignment`. */
+  stats: AlignmentStats;
+  /** The match line of every alignment in `all` (same order). */
+  matchLines: string[];
 }
 
 /** Request to run the seeded shuffle significance test. */

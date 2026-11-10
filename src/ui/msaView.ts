@@ -1,12 +1,9 @@
 // MSA view (Milestone C): load a set, choose a guide-tree method and scoring, run the progressive aligner in a worker, view the
 // alignment with conservation, select columns, export, and build a tree (with bootstrap) from the app's own alignment.
-import { conservationCsv } from '../bio/conservation';
-import { writeFasta } from '../bio/fasta';
 import type { MsaResult } from '../bio/msa';
-import { MAX_MSA_SEQS } from '../bio/msa';
+import { conservationCsvAsync, limits, writeFastaAsync, writeNewickAsync } from '../backend/api';
 import { createMsaWorker } from '../backend';
 import type { JobWorker } from '../backend';
-import { writeNewick } from '../bio/newick';
 import { msaToClustal, msaToFasta } from '../io/export';
 import type { Alphabet, AlphabetChoice, ScoringSpec } from '../shared/types';
 import { MAX_OPEN_FILE_BYTES } from '../shared/types';
@@ -119,13 +116,16 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
 
   // ---- logic ----
   const analysis = (): ReturnType<typeof analyzeSet> => analyzeSet(text, alphabetChoice, 'unaligned');
-  const refreshInput = (): void => {
-    const a = analysis();
+  let refreshSeq = 0;
+  const refreshInput = async (): Promise<void> => {
+    const mine = ++refreshSeq;
+    const a = await analysis();
+    if (mine !== refreshSeq) return; // a newer refresh is already on its way
     badge.textContent = a.records.length === 0 ? 'empty' : `${a.records.length} sequences · ${a.alphabet}`;
     clear(msgs);
     for (const i of a.issues) msgs.append(callout(i.severity === 'error' ? 'error' : i.severity === 'warning' ? 'warn' : 'info', i.message));
     if (a.blocking !== null) msgs.append(callout(a.records.length === 0 && text.trim() === '' ? 'info' : 'error', a.blocking));
-    if (a.blocking === null && a.records.length > MAX_MSA_SEQS) msgs.append(callout('error', `At most ${MAX_MSA_SEQS} sequences.`));
+    if (a.blocking === null && a.records.length > limits().maxMsaSeqs) msgs.append(callout('error', `At most ${limits().maxMsaSeqs} sequences.`));
     if (a.duplicateNames) msgs.append(callout('error', 'Every sequence needs a unique name before it can be aligned. Use “Make names unique”.'));
     fixNames.hidden = !a.duplicateNames;
     const ok = a.blocking === null && a.alphabet !== 'unknown' && !a.duplicateNames && a.records.length >= 1;
@@ -138,9 +138,9 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
       panel.setState({ mode: 'global', scoring }, a.alphabet);
     }
   };
-  const schedule = debounce(() => refreshInput(), 200);
+  const schedule = debounce(() => void refreshInput(), 200);
 
-  function setText(t: string): void { text = t; area.value = t; refreshInput(); }
+  function setText(t: string): void { text = t; area.value = t; void refreshInput(); }
 
   const showStatus = (): void => {
     clear(statusHost);
@@ -172,13 +172,14 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
     textView.textContent = out.join('\n');
   };
 
-  const showResult = (r: MsaResult | null): void => {
+  const showResult = async (r: MsaResult | null): Promise<void> => {
     result = r;
     clear(summary); clear(guideHost);
     const have = r !== null;
     for (const x of [fastaBtn, clustalBtn, csvBtn, pngBtn, nwkBtn, nj, up]) x.disabled = !have;
     nj.disabled = up.disabled = !have || r.rows.length < 3;
-    canvas.setData(r?.ids ?? null, r?.rows ?? null, resultAlphabet);
+    await canvas.setData(r?.ids ?? null, r?.rows ?? null, resultAlphabet);
+    if (result !== r) return; // another result replaced this one while the statistics were computed
     renderTextView();
     showSelection(null);
     if (!r) return;
@@ -199,9 +200,9 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
     }
   };
 
-  const run = (): void => {
-    const a = analysis();
-    if (a.blocking !== null || a.alphabet === 'unknown' || a.duplicateNames) { refreshInput(); return; }
+  const run = async (): Promise<void> => {
+    const a = await analysis();
+    if (a.blocking !== null || a.alphabet === 'unknown' || a.duplicateNames) { void refreshInput(); return; }
     worker?.terminate();
     const alphabet: Alphabet = a.alphabet;
     resultAlphabet = alphabet;
@@ -211,9 +212,9 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
       const m = ev.data;
       if (m.type === 'progress') { state = { kind: 'running', progress: m.fraction }; showStatus(); return; }
       worker?.terminate(); worker = null;
-      if (m.type === 'error') { state = { kind: 'error', message: m.message }; showStatus(); refreshInput(); return; }
-      state = { kind: 'done' }; showStatus(); refreshInput();
-      showResult(m.value);
+      if (m.type === 'error') { state = { kind: 'error', message: m.message }; showStatus(); void refreshInput(); return; }
+      state = { kind: 'done' }; showStatus(); void refreshInput();
+      void showResult(m.value);
     };
     worker.onerror = (e) => { state = { kind: 'error', message: `The alignment worker failed: ${e.message}` }; worker = null; showStatus(); };
     const req: MsaRequest = { type: 'msa', seqs: a.records, alphabet, scoring, guide };
@@ -222,11 +223,11 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
 
   // ---- events ----
   area.addEventListener('input', () => { text = area.value; schedule(); });
-  alphaSel.addEventListener('change', () => { alphabetChoice = alphaSel.value as AlphabetChoice; refreshInput(); }); // safe: the select only offers AlphabetChoice values
+  alphaSel.addEventListener('change', () => { alphabetChoice = alphaSel.value as AlphabetChoice; void refreshInput(); }); // safe: the select only offers AlphabetChoice values
   guideSel.addEventListener('change', () => { guide = guideSel.value === 'nj' ? 'nj' : 'upgma'; });
-  runBtn.addEventListener('click', run);
-  cancelBtn.addEventListener('click', () => { worker?.terminate(); worker = null; state = { kind: 'cancelled' }; showStatus(); refreshInput(); });
-  fixNames.addEventListener('click', () => { setText(writeFasta(uniquifyNames(analysis().records), 1_000_000)); toast('Renamed duplicate names by adding _2, _3, …'); });
+  runBtn.addEventListener('click', () => void run());
+  cancelBtn.addEventListener('click', () => { worker?.terminate(); worker = null; state = { kind: 'cancelled' }; showStatus(); void refreshInput(); });
+  fixNames.addEventListener('click', () => { void analysis().then(async (a) => { setText(await writeFastaAsync(uniquifyNames(a.records), 1_000_000)); toast('Renamed duplicate names by adding _2, _3, …'); }); });
   openBtn.addEventListener('click', () => { void window.sequenceScope.openFile('fasta').then((r) => { if (r.ok) { setText(r.text); toast(`Loaded ${r.name}.`); } else if (r.reason !== 'cancelled') toast(r.message); }); });
   metricSel.addEventListener('change', () => canvas.setMetric(metricSel.value as Metric)); // safe: the select only offers Metric values
   widthSel.addEventListener('change', () => canvas.setCellWidth(Number(widthSel.value)));
@@ -243,9 +244,9 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
   };
   fastaBtn.addEventListener('click', () => { if (result) void save('alignment.fasta', 'fasta', msaToFasta(result.ids, result.rows)); });
   clustalBtn.addEventListener('click', () => { if (result) void save('alignment.aln', 'aln', msaToClustal(result.ids, result.rows)); });
-  csvBtn.addEventListener('click', () => { if (result) void save('conservation.csv', 'csv', conservationCsv(result.rows, resultAlphabet)); });
+  csvBtn.addEventListener('click', () => { if (result) void conservationCsvAsync(result.rows, resultAlphabet).then((text) => save('conservation.csv', 'csv', text)); });
   pngBtn.addEventListener('click', () => { const u = canvas.toPng(); if (u) void save('alignment.png', 'png', u.split(',')[1] ?? '', 'base64'); else toast('This alignment is too large to export as one PNG; export FASTA instead or select fewer columns.'); });
-  nwkBtn.addEventListener('click', () => { if (result) void save('guide-tree.nwk', 'nwk', writeNewick(result.guideTree) + '\n'); });
+  nwkBtn.addEventListener('click', () => { if (result) void writeNewickAsync(result.guideTree).then((text) => save('guide-tree.nwk', 'nwk', text + '\n')); });
   nj.addEventListener('click', () => { if (result) toTrees(msaToFasta(result.ids, result.rows), 'nj'); });
   up.addEventListener('click', () => { if (result) toTrees(msaToFasta(result.ids, result.rows), 'upgma'); });
 
@@ -258,13 +259,13 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
     if (it) void loadExampleText(it.id, false).then((t) => { setText(t); }).catch((e: unknown) => toast(e instanceof Error ? e.message : 'Could not load the example.'));
   });
 
-  showResult(null);
-  refreshInput();
+  void showResult(null);
+  void refreshInput();
   return {
     id: 'msa', title: 'MSA', root,
     loadText: setText,
     getState: () => ({ text, alphabet: alphabetChoice, guide, scoring }),
-    setState(s) { text = s.text; alphabetChoice = s.alphabet; guide = s.guide; scoring = s.scoring; area.value = s.text; alphaSel.value = s.alphabet; guideSel.value = s.guide; panel.setState({ mode: 'global', scoring }, 'unknown'); refreshInput(); },
+    setState(s) { text = s.text; alphabetChoice = s.alphabet; guide = s.guide; scoring = s.scoring; area.value = s.text; alphaSel.value = s.alphabet; guideSel.value = s.guide; panel.setState({ mode: 'global', scoring }, 'unknown'); void refreshInput(); },
     handleAction(a) { if (a === 'open-fasta') { openBtn.click(); return true; } if (a === 'export' && result) { fastaBtn.click(); return true; } return false; },
   };
 }

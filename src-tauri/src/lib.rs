@@ -8,6 +8,9 @@ mod dto;
 mod fileio;
 mod frame;
 mod jobs;
+mod ops;
+mod ops_msa;
+mod ops_tree;
 mod results;
 mod smoke;
 mod validate;
@@ -51,6 +54,7 @@ pub fn run() {
             compute::distance_matrix,
             compute::bootstrap_job,
             compute::msa_job,
+            compute::bio_op,
             compute::cancel_job,
             compute::smoke_active_jobs,
             smoke::smoke_report

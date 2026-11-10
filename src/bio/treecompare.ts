@@ -1,7 +1,7 @@
 // Robinson-Foulds distance between two trees on the same leaves, viewed as UNROOTED (ALGORITHMS.md section 9).
 import type { Tree } from '../shared/types';
 import { BioError } from './errors';
-import { nontrivialSplits } from './tree';
+import { cladeKey, isLeaf, leafNames, nontrivialSplits, preorder } from './tree';
 
 export interface RfResult {
   /** |S1 Δ S2|: number of non-trivial splits present in exactly one tree. */
@@ -29,4 +29,18 @@ export function robinsonFoulds(a: Tree, b: Tree): RfResult {
   for (const [k, v] of sa.splits) (sb.splits.has(k) ? shared : onlyInA).push(v);
   for (const [k, v] of sb.splits) if (!sa.splits.has(k)) onlyInB.push(v);
   return { distance: onlyInA.length + onlyInB.length, max: sa.splits.size + sb.splits.size, shared, onlyInA, onlyInB, leafCount: sa.leaves.length };
+}
+
+/** Pre-order indexes of the branches whose split does NOT occur in `other` (non-trivial splits only). */
+export function uniqueBranches(tree: Tree, other: Tree): Set<number> {
+  const theirs = nontrivialSplits(other).splits;
+  const all = leafNames(tree);
+  const out = new Set<number>();
+  preorder(tree).forEach((n, idx) => {
+    if (idx === 0 || isLeaf(n)) return;
+    const leaves = leafNames(n);
+    if (leaves.length < 2 || leaves.length > all.length - 2) return;
+    if (!theirs.has(cladeKey(leaves, all))) out.add(idx);
+  });
+  return out;
 }

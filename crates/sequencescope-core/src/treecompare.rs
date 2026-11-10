@@ -2,7 +2,7 @@
 //! Port of `src/bio/treecompare.ts`.
 
 use crate::error::{BioError, BioErrorCode};
-use crate::tree::{Tree, nontrivial_splits};
+use crate::tree::{Tree, clade_key, leaf_names, nontrivial_splits, preorder};
 
 /// The distance and which splits are shared / unique.
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +58,27 @@ pub fn robinson_foulds(a: &Tree, b: &Tree) -> Result<RfResult, BioError> {
         only_in_b,
         leaf_count: sa.leaves.len(),
     })
+}
+
+/// Pre-order indexes of the internal branches of `tree` whose split does NOT occur in `other` (non-trivial splits only);
+/// the Compare view marks these in red. Port of `uniqueBranches` in `src/ui/compareView.ts`.
+pub fn unique_branches(tree: &Tree, other: &Tree) -> Result<Vec<usize>, BioError> {
+    let theirs = nontrivial_splits(other)?.splits;
+    let all = leaf_names(tree);
+    let mut out = Vec::new();
+    for (idx, node) in preorder(tree).into_iter().enumerate() {
+        if idx == 0 || node.is_leaf() {
+            continue;
+        }
+        let leaves = leaf_names(&Tree { root: node.clone() });
+        if leaves.len() < 2 || leaves.len() as i64 > all.len() as i64 - 2 {
+            continue;
+        }
+        if !theirs.contains_key(&clade_key(&leaves, &all)) {
+            out.push(idx);
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

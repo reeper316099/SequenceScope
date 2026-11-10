@@ -1,15 +1,14 @@
 // Three-line alignment display (A, match line, B) with ruler, wrapped to the available width. Letters are always
 // shown; colour (colour-blind-safe palette via CSS classes) is only a second cue.
 import type { Alphabet, PairwiseAlignment } from '../shared/types';
-import { matchLine } from '../bio/alignstats';
-import type { CompiledScoring } from '../bio/scoring';
 import { clear, el } from './dom';
 import { residueClass } from './residueClass';
 
 export interface AlignmentViewData {
   all: readonly PairwiseAlignment[];
   capped: boolean;
-  scoring: CompiledScoring;
+  /** The match line of every alignment in `all` (same order), computed by the aligner. */
+  matchLines: readonly string[];
   alphabet: Alphabet;
   idA: string;
   idB: string;
@@ -75,7 +74,7 @@ export function createAlignmentView(onPick: (aln: PairwiseAlignment) => void): A
     legendFor(data.alphabet);
     if (aln.rowA.length === 0) { body.append(el('p', 'hint', 'No positive-scoring local alignment exists for these sequences and scores (best local score is 0).')); return; }
     const cols = perLine();
-    const mline = matchLine(aln, data.scoring);
+    const mline = data.matchLines[index] ?? '';
     const alphabet = data.alphabet;
     const total = Math.ceil(aln.rowA.length / cols);
     const myRender = renderToken;
@@ -139,7 +138,7 @@ export function createAlignmentView(onPick: (aln: PairwiseAlignment) => void): A
       if (!ctx) return null;
       ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.font = '13px ui-monospace, Menlo, monospace'; ctx.textBaseline = 'middle';
-      const mline = matchLine(aln, data.scoring);
+      const mline = data.matchLines[index] ?? '';
       for (let b = 0; b < blocks; b++) {
         const y0 = 10 + b * lh * 4;
         [[aln.rowA, 'A'], [mline, ''], [aln.rowB, 'B']].forEach(([row, label], r) => {

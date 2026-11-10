@@ -1,5 +1,6 @@
 // Unit tests for the DOM-free UI logic: history, histogram, matrix geometry, input model, residue classes.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { loadReferenceData } from '../../src/backend/api';
 import { History } from '../../src/ui/history';
 import { histogram } from '../../src/ui/histogram';
 import { cellAt, fitView, mix, pathCells, visibleRange, zoomAt, parseHex } from '../../src/ui/matrixGeometry';
@@ -86,33 +87,35 @@ describe('matrix geometry', () => {
   });
 });
 
+beforeAll(loadReferenceData);
+
 describe('input model', () => {
-  it('analyses raw DNA without showing a "no header" message', () => {
-    const a = analyzeSequenceText(' acgt acgt\n12 acgtacgtacgtacgt ', 'auto');
+  it('analyses raw DNA without showing a "no header" message', async () => {
+    const a = await analyzeSequenceText(' acgt acgt\n12 acgtacgtacgtacgt ', 'auto');
     expect(a.residues).toBe('ACGTACGTACGTACGTACGTACGT');
     expect(a.alphabet).toBe('dna');
     expect(a.issues.map((i) => i.code)).not.toContain('no-header');
     expect(a.issues.map((i) => i.code)).toContain('digits-removed');
   });
-  it('an empty box is empty (not an error); junk is an error', () => {
-    expect(analyzeSequenceText('', 'auto')).toMatchObject({ empty: true, hasError: false });
-    expect(analyzeSequenceText('@@@@##$$', 'auto').hasError).toBe(true);
+  it('an empty box is empty (not an error); junk is an error', async () => {
+    expect(await analyzeSequenceText('', 'auto')).toMatchObject({ empty: true, hasError: false });
+    expect((await analyzeSequenceText('@@@@##$$', 'auto')).hasError).toBe(true);
   });
-  it('warns when several FASTA records are pasted', () => {
-    const a = analyzeSequenceText('>a\nACGTACGTACGTACGTACGT\n>b\nACGTACGTACGTACGTACGA\n', 'auto');
+  it('warns when several FASTA records are pasted', async () => {
+    const a = await analyzeSequenceText('>a\nACGTACGTACGTACGTACGT\n>b\nACGTACGTACGTACGTACGA\n', 'auto');
     expect(a.id).toBe('a');
     expect(a.issues.some((i) => i.message.includes('only the first'))).toBe(true);
   });
-  it('checkPair gives clear reasons', () => {
-    const dna = analyzeSequenceText('ACGTACGTACGTACGTACGT', 'auto');
-    const prot = analyzeSequenceText('MVLSPADKTNVKAAWGKVGAHAGE', 'auto');
-    const empty = analyzeSequenceText('', 'auto');
+  it('checkPair gives clear reasons', async () => {
+    const dna = await analyzeSequenceText('ACGTACGTACGTACGTACGT', 'auto');
+    const prot = await analyzeSequenceText('MVLSPADKTNVKAAWGKVGAHAGE', 'auto');
+    const empty = await analyzeSequenceText('', 'auto');
     expect(checkPair(dna, empty, 'auto')).toEqual({ ok: false, message: 'Sequence B is empty.' });
     expect(checkPair(dna, dna, 'auto')).toEqual({ ok: true, alphabet: 'dna' });
     const mismatch = checkPair(dna, prot, 'auto');
     expect(mismatch.ok).toBe(false);
     if (!mismatch.ok) expect(mismatch.message).toContain('dna');
-    expect(checkPair(analyzeSequenceText('ACGT!ACGT', 'dna'), dna, 'dna').ok).toBe(false);
+    expect(checkPair(await analyzeSequenceText('ACGT!ACGT', 'dna'), dna, 'dna').ok).toBe(false);
   });
   it('every preset compiles for its molecule type, and wording shows real numbers', () => {
     for (const p of PRESETS) expect(() => compileScoring(p.scoring, p.molecules === 'protein' ? 'protein' : 'dna')).not.toThrow();

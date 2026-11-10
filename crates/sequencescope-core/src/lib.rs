@@ -8,6 +8,7 @@
 //! Robinson-Foulds and the column bootstrap, and (Checkpoint 5) alignment conservation and the progressive
 //! multiple alignment.
 
+pub mod alignstats;
 pub mod alphabet;
 pub mod bootstrap;
 pub mod conservation;

@@ -1,7 +1,7 @@
 // Score-matrix heatmap on a <canvas>: zoom/pan, axis letters, numbers and arrows for small matrices, traceback path,
 // fill-progress for the stepper, keyboard cell navigation, and a text-table fallback. Large matrices are drawn as a
 // max-pooled overview (each pixel summarises several cells) that becomes exact when zoomed in.
-import type { Dp } from '../bio/pairwise';
+import type { DpView } from '../backend/api';
 import { clear, el } from './dom';
 import { cellAt, fitView, mix, parseHex, visibleRange, zoomAt } from './matrixGeometry';
 import type { View } from './matrixGeometry';
@@ -25,7 +25,7 @@ export interface Progress {
 
 export interface MatrixCanvas {
   root: HTMLElement;
-  setDp(dp: Dp | null, path: readonly (readonly [number, number])[]): void;
+  setDp(dp: DpView | null, path: readonly (readonly [number, number])[]): void;
   setProgress(p: Progress | null): void;
   select(cell: { i: number; j: number } | null): void;
   getSelected(): { i: number; j: number } | null;
@@ -64,7 +64,7 @@ export function createMatrixCanvas(onSelect: (cell: { i: number; j: number } | n
   const hover = el('p', 'hint mono matrix-hover', 'Hover or click a cell for details.');
   root.append(controls, note, stage, legend, hover);
 
-  let dp: Dp | null = null;
+  let dp: DpView | null = null;
   let path: readonly (readonly [number, number])[] = [];
   let progress: Progress | null = null;
   let selected: { i: number; j: number } | null = null;

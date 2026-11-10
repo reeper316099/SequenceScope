@@ -44,3 +44,31 @@ export function bitsHex(x: number): string {
   dv.setFloat64(0, x);
   return dv.getBigUint64(0).toString(16).padStart(16, '0');
 }
+
+const ulpView = new DataView(new ArrayBuffer(16));
+/** Distance in units in the last place between two doubles (Infinity if the signs differ). */
+export function ulpDistance(a: number, b: number): number {
+  if (a === b) return 0;
+  if (Math.sign(a) !== Math.sign(b)) return Infinity;
+  ulpView.setFloat64(0, Math.abs(a)); ulpView.setFloat64(8, Math.abs(b));
+  const d = ulpView.getBigUint64(0) - ulpView.getBigUint64(8);
+  return Number(d < 0n ? -d : d);
+}
+
+/**
+ * Path and values of the first difference between two JSON-like values, or null if they are equal. Object key order does not
+ * matter; numbers may differ by up to `maxUlps` units in the last place (0 = exactly equal).
+ */
+export function jsonDiff(a: unknown, b: unknown, maxUlps = 0, path = '$'): string | null {
+  if (typeof a === 'number' && typeof b === 'number') return ulpDistance(a, b) <= maxUlps || (Number.isNaN(a) && Number.isNaN(b)) ? null : `${path}: ${a} vs ${b}`;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return Object.is(a, b) || a === b ? null : `${path}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`;
+  if (Array.isArray(a) !== Array.isArray(b)) return `${path}: array vs object`;
+  const ka = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined).sort();
+  const kb = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined).sort();
+  if (ka.join('\u0001') !== kb.join('\u0001')) return `${path}: keys [${ka.join(',')}] vs [${kb.join(',')}]`;
+  for (const k of ka) {
+    const d = jsonDiff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], maxUlps, Array.isArray(a) ? `${path}[${k}]` : `${path}.${k}`);
+    if (d !== null) return d;
+  }
+  return null;
+}

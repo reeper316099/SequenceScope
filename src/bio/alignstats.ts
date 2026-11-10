@@ -1,6 +1,6 @@
 // Alignment statistics, the independent re-scorer, and validity checks. The re-scorer deliberately does NOT use
 // the DP tables: it walks the two gapped rows column by column with the char-level scorer, so it can catch bugs in the DP.
-import type { PairwiseAlignment } from '../shared/types';
+import type { AlignmentStats, PairwiseAlignment } from '../shared/types';
 import type { CompiledScoring } from './scoring';
 
 /** Scores two gapped rows: substitution per aligned pair; a gap run of length k costs open + (k-1)*extend. */
@@ -50,20 +50,7 @@ export function validateAlignment(aln: PairwiseAlignment, a: string, b: string, 
   return { ok: problems.length === 0, problems };
 }
 
-export interface AlignmentStats {
-  length: number; // alignment columns
-  identities: number; // columns with the same STANDARD residue in both rows
-  mismatches: number; // aligned residue pairs that are not identities
-  positives: number; // aligned non-identical pairs with a positive score (matrix scoring only meaningful)
-  gapColumns: number;
-  gapOpens: number; // number of gap runs
-  gapsInA: number; // gap characters in row A
-  gapsInB: number;
-  ambiguousColumns: number; // aligned pairs involving an ambiguity code (never counted as identity)
-  identityPct: number | null; // identities / length * 100 (null for an empty alignment)
-  similarityPct: number | null; // (identities + positives) / length * 100 (null if length 0)
-  alignedColumns: number; // columns without a gap
-}
+export type { AlignmentStats };
 
 /** Computes identity, similarity, and gap statistics (denominator for the percentages is the alignment length). */
 export function alignmentStats(aln: PairwiseAlignment, sc: CompiledScoring): AlignmentStats {

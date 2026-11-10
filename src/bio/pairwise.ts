@@ -8,7 +8,7 @@
 //  * Co-optimal alignments can be enumerated up to a hard cap.
 //
 // Memory per cell: linear = Int32 H (4 B) + Uint8 pointers (1 B) = 5 B; affine = 3 x Int32 (12 B) + Uint16 pointers (2 B) = 14 B.
-import type { AlignMode, DpSnapshot, PairwiseAlignment } from '../shared/types';
+import type { AlignMode, CellInfo, DpSnapshot, PairwiseAlignment } from '../shared/types';
 import { BioError } from './errors';
 import { encodeResidues } from './scoring';
 import type { CompiledScoring } from './scoring';
@@ -410,19 +410,7 @@ export function alignScoreOnly(a: string, b: string, mode: AlignMode, scoring: C
   return local ? best : Math.max(i32(pM, n), i32(pX, n), i32(pY, n));
 }
 
-/** Cell inspection data for the details panel: the candidate values behind one DP cell and the move(s) chosen. */
-export type CellInfo =
-  | { kind: 'border'; i: number; j: number; value: number; note: string }
-  | { kind: 'linear'; i: number; j: number; s: number; diag: number; up: number; left: number; zeroFloor: boolean; value: number; chosen: ('diagonal' | 'up' | 'left')[] }
-  | {
-      kind: 'affine'; i: number; j: number; s: number;
-      /** M: best of the three states at (i-1,j-1) [+ fresh start for local], plus s. */
-      M: { fromM: number; fromX: number; fromY: number; startFresh: boolean; value: number; chosen: string[] };
-      /** X: gap column consuming a_i: open from M/Y, or extend X. */
-      X: { openFromM: number; extendX: number; openFromY: number; value: number; chosen: string[] };
-      /** Y: gap column consuming b_j: open from M/X, or extend Y. */
-      Y: { openFromM: number; openFromX: number; extendY: number; value: number; chosen: string[] };
-    };
+export type { CellInfo };
 
 const STATE_NAMES = ['M', 'X', 'Y'];
 

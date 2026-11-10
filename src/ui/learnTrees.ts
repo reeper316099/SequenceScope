@@ -1,11 +1,6 @@
 // Learn view, Milestone B part: distance corrections and saturation (interactive plot), UPGMA vs neighbor-joining
 // (a live example where the molecular-clock assumption misleads UPGMA), how to read a tree, and what bootstrap means.
-import { correctDistance, matrixFromRows } from '../bio/distance';
-import { neighborJoining } from '../bio/nj';
-import { parseNewick, writeNewick } from '../bio/newick';
-import { leafDistances } from '../bio/tree';
-import { robinsonFoulds } from '../bio/treecompare';
-import { upgma } from '../bio/upgma';
+import { buildTreesFromRowsAsync, compareTreesAsync, correctDistancesAsync, leafDistancesAsync, parseNewickAsync, writeNewickMany } from '../backend/api';
 import { callout, card } from './cards';
 import { el } from './dom';
 import { createTreeViewer } from './treeView';
@@ -25,6 +20,9 @@ function correctionPlot(): HTMLElement {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', 'Plot of corrected distance d against observed p. The Jukes–Cantor curve rises to infinity at p = 0.75 and the Poisson curve at p = 1.');
   svg.setAttribute('font-family', 'system-ui, sans-serif');
+  const GRID = 400; // curve samples at p = i / 400; the slider's p = k / 100 is sample 4k (the same double)
+  const grid = Array.from({ length: GRID + 1 }, (_, i) => i / GRID);
+  let jcCurve: (number | null)[] = []; let poCurve: (number | null)[] = [];
   const x = (p: number): number => L + p * (W - L - R); const y = (d: number): number => H - B - (Math.min(d, YMAX) / YMAX) * (H - B - T);
   const draw = (): void => {
     svg.replaceChildren();
@@ -38,16 +36,16 @@ function correctionPlot(): HTMLElement {
     for (const [lim, label, col] of [[0.75, 'JC limit 0.75', primary], [1, 'Poisson limit 1', secondary]] as const) {
       svg.append(mk('line', { x1: x(lim), y1: T, x2: x(lim), y2: H - B, stroke: col, 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }), mk('text', { x: x(lim) - 4, y: T + 12 + (lim === 1 ? 14 : 0), 'text-anchor': 'end', 'font-size': 11, fill: col }, label));
     }
-    const curve = (f: (p: number) => number | null, col: string, dash?: string): void => {
+    const curve = (f: (i: number) => number | null, col: string, dash?: string): void => {
       let dpath = ''; let pen = false;
-      for (let i = 0; i <= 400; i++) { const p = i / 400; const v = f(p); if (v === null || v > YMAX) { pen = false; continue; } dpath += `${pen ? 'L' : 'M'} ${x(p)} ${y(v)} `; pen = true; }
+      for (let i = 0; i <= GRID; i++) { const p = i / GRID; const v = f(i); if (v === null || v === undefined || v > YMAX) { pen = false; continue; } dpath += `${pen ? 'L' : 'M'} ${x(p)} ${y(v)} `; pen = true; }
       const attrs: Record<string, string | number> = { d: dpath, fill: 'none', stroke: col, 'stroke-width': 2.2 };
       if (dash) attrs['stroke-dasharray'] = dash;
       svg.append(mk('path', attrs));
     };
-    curve((p) => p, muted, '2 3'); curve((p) => correctDistance(p, 'jc'), primary); curve((p) => correctDistance(p, 'poisson'), secondary);
+    curve((i) => i / GRID, muted, '2 3'); curve((i) => jcCurve[i] ?? null, primary); curve((i) => poCurve[i] ?? null, secondary);
     const p = Number(slider.value) / 100;
-    const jc = correctDistance(p, 'jc'); const po = correctDistance(p, 'poisson');
+    const jc = jcCurve[Number(slider.value) * 4] ?? null; const po = poCurve[Number(slider.value) * 4] ?? null;
     svg.append(mk('line', { x1: x(p), y1: T, x2: x(p), y2: H - B, stroke: accent, 'stroke-width': 2 }));
     if (jc !== null) svg.append(mk('circle', { cx: x(p), cy: y(jc), r: 4.5, fill: primary }));
     if (po !== null) svg.append(mk('circle', { cx: x(p), cy: y(po), r: 4.5, fill: secondary }));
@@ -59,6 +57,7 @@ function correctionPlot(): HTMLElement {
   const lab = el('label', 'field'); lab.append(el('span', 'field-label', 'Move the observed p'), slider);
   box.append(lab, readout, svg);
   draw();
+  void Promise.all([correctDistancesAsync('jc', grid), correctDistancesAsync('poisson', grid)]).then(([jc, po]) => { jcCurve = jc; poCurve = po; draw(); });
   new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   return box;
 }
@@ -66,25 +65,31 @@ function correctionPlot(): HTMLElement {
 /** The clock example: truth, UPGMA, and NJ side by side with RF distances computed live. */
 function clockExample(): HTMLElement {
   const box = el('div', 'clock-example');
-  const truth = parseNewick('((A:3,B:0.5):0.25,(C:3,D:0.5):0.25);').tree;
-  const { names, dist } = leafDistances(truth);
-  const m = matrixFromRows(names, dist);
-  const u = upgma(m).tree; const nj = neighborJoining(m).tree;
-  const rfU = robinsonFoulds(truth, u).distance; const rfN = robinsonFoulds(truth, nj).distance;
+  void fillClockExample(box); // the numbers come from the calculation engine a moment later
+  return box;
+}
+
+/** Computes the clock example (true tree, its distances, UPGMA and NJ results, Robinson-Foulds distances) and fills `box`. */
+async function fillClockExample(box: HTMLElement): Promise<void> {
+  const truth = (await parseNewickAsync('((A:3,B:0.5):0.25,(C:3,D:0.5):0.25);')).tree;
+  const { names, dist } = await leafDistancesAsync(truth);
+  const built = await buildTreesFromRowsAsync(names, dist);
+  const u = built.upgma.tree; const nj = built.nj.tree;
+  const rfU = (await compareTreesAsync(truth, u)).rf.distance; const rfN = (await compareTreesAsync(truth, nj)).rf.distance;
+  const texts = await writeNewickMany([truth, u, nj], { includeSupport: false });
   const table = el('table', 'matrix-table', undefined, { 'aria-label': 'Distances of the clock example' });
   const head = el('tr'); head.append(el('th'), ...names.map((n) => el('th', undefined, n))); table.append(head);
   names.forEach((n, i) => { const tr = el('tr'); tr.append(el('th', undefined, n), ...(dist[i] as number[]).map((v) => el('td', undefined, String(v)))); table.append(tr); });
   const views = el('div', 'pair');
-  for (const [label, t, rf] of [['True tree', truth, 0], ['UPGMA result', u, rfU], ['Neighbor-joining result', nj, rfN]] as const) {
+  for (const [k, [label, t, rf]] of ([['True tree', truth, 0], ['UPGMA result', u, rfU], ['Neighbor-joining result', nj, rfN]] as const).entries()) {
     const col = el('div'); col.append(el('h4', undefined, `${label}${label === 'True tree' ? '' : ` — Robinson–Foulds distance to the truth: ${rf}`}`));
-    const v = createTreeViewer(label); v.setTree(t); col.append(v.root, el('p', 'hint mono', writeNewick(t, { includeSupport: false })));
+    const v = createTreeViewer(label); v.setTree(t); col.append(v.root, el('p', 'hint mono', texts[k] ?? ''));
     views.append(col);
   }
   box.append(prose('Here the true tree has two fast-evolving lineages, A and C (long branches of length 3), and two slow ones, B and D (0.5). The distances below were computed exactly from that tree, so a correct method should recover it.'), table, views,
     callout(rfU > 0 ? 'warn' : 'info', rfU > 0
       ? `UPGMA pairs the two closest taxa, B and D (distance ${dist[names.indexOf('B')]?.[names.indexOf('D')] ?? ''}), because it assumes every lineage changed at the same rate, so a short distance must mean recent common ancestry. Here the short distance only reflects the slow lineages, so UPGMA gets the wrong grouping (RF = ${rfU}). Neighbor-joining corrects for each taxon’s overall divergence and recovers the true tree (RF = ${rfN}).`
       : 'UPGMA and the true tree agree here.'));
-  return box;
 }
 
 /** The Milestone B Learn cards. */

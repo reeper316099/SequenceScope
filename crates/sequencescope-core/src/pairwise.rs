@@ -23,19 +23,19 @@ pub const MAX_DP_CELLS: usize = 5001 * 5001;
 /// Default cap for co-optimal enumeration.
 pub const MAX_ENUMERATED_ALIGNMENTS: usize = 1000;
 /// "Minus infinity" that cannot overflow i32 when a penalty is subtracted once.
-const NEG: i32 = -1_000_000_000;
+pub(crate) const NEG: i32 = -1_000_000_000;
 /// Maximum number of tied local end cells remembered.
 const ENDS_CAP: usize = 10_000;
 
 // Linear pointer bits: which predecessors achieve the maximum.
-const L_DIAG: u8 = 1;
-const L_UP: u8 = 2;
-const L_LEFT: u8 = 4;
+pub(crate) const L_DIAG: u8 = 1;
+pub(crate) const L_UP: u8 = 2;
+pub(crate) const L_LEFT: u8 = 4;
 // Affine pointer layout in a u16: bits 0-2 = predecessor states of M (M=1, X=2, Y=4), bit 3 = local start,
 // bits 4-6 = predecessor states of X, bits 7-9 = predecessor states of Y.
-const A_START: u16 = 8;
-const A_X_SHIFT: u16 = 4;
-const A_Y_SHIFT: u16 = 7;
+pub(crate) const A_START: u16 = 8;
+pub(crate) const A_X_SHIFT: u16 = 4;
+pub(crate) const A_Y_SHIFT: u16 = 7;
 
 /// One alignment column type: M = both residues, X = residue of A against a gap, Y = residue of B against a gap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

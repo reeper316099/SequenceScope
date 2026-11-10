@@ -13,6 +13,7 @@ fn main() {
             "distance_matrix",
             "bootstrap_job",
             "msa_job",
+            "bio_op",
             "cancel_job",
             "smoke_active_jobs",
             "smoke_report",

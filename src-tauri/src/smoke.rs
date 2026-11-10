@@ -10,7 +10,7 @@ use tauri::AppHandle;
 /// Parity and benchmark runs do much more work and get longer limits.
 fn watchdog_seconds() -> u64 {
     match mode() {
-        "parity" => 600,
+        "parity" => 1200,
         "bench" => 1500,
         _ => 60,
     }

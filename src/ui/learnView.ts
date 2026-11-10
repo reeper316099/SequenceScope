@@ -1,7 +1,6 @@
 // Learn view (Milestone A part): what an alignment is, scoring, the recurrences (MathML) with CURRENT values filled
 // in, an editable worked mini-example, global vs local, linear vs affine gaps, and what traceback does.
-import { fillMatrix, tracebackFirst } from '../bio/pairwise';
-import { compileScoring } from '../bio/scoring';
+import { alignOnce } from '../backend/api';
 import type { AlignMode, ScoringSpec } from '../shared/types';
 import { callout, card } from './cards';
 import { clear, el, mml } from './dom';
@@ -106,15 +105,19 @@ export function createLearnView(getContext: () => { scoring: ScoringSpec; mode: 
     const lab = (t: string, c: HTMLElement): HTMLElement => { const l = el('label', 'field narrow'); l.append(el('span', 'field-label', t), c); return l; };
     const controls = el('div', 'row'); controls.append(lab('Sequence A', aIn), lab('Sequence B', bIn), lab('Match', mIn), lab('Mismatch', xIn), lab('Gap penalty', gIn), lab('Mode', mode));
     const out = el('div', 'mini-out');
-    const redraw = (): void => {
+    let redrawSeq = 0;
+    const redraw = async (): Promise<void> => {
+      const mine = ++redrawSeq;
+      const [A, B] = await Promise.all([analyzeSequenceText(aIn.value, 'dna'), analyzeSequenceText(bIn.value, 'dna')]);
+      if (mine !== redrawSeq) return; // a newer edit is already being worked on
       clear(out);
-      const A = analyzeSequenceText(aIn.value, 'dna'); const B = analyzeSequenceText(bIn.value, 'dna');
       const bad = [A, B].find((x) => x.hasError || x.empty);
       if (bad) { out.append(callout('warn', 'Enter two short DNA sequences (letters A, C, G, T; up to 14 each).')); return; }
       try {
-        const sc = compileScoring({ substitution: { kind: 'simple', match: Number(mIn.value), mismatch: Number(xIn.value) }, gaps: { kind: 'linear', gap: Number(gIn.value) } }, 'dna');
-        const dp = fillMatrix(A.residues, B.residues, mode.value === 'local' ? 'local' : 'global', sc);
-        const aln = tracebackFirst(dp);
+        const scoring: ScoringSpec = { substitution: { kind: 'simple', match: Number(mIn.value), mismatch: Number(xIn.value) }, gaps: { kind: 'linear', gap: Number(gIn.value) } };
+        const result = await alignOnce({ type: 'align', a: A.residues, b: B.residues, alphabet: 'dna', mode: mode.value === 'local' ? 'local' : 'global', scoring, enumerateCap: 1 });
+        if (mine !== redrawSeq) return;
+        const aln = result.alignment; const dp = result.dp;
         const onPath = new Set(aln.rowA.length === 0 ? [] : pathCells(aln).map(([i, j]) => `${i},${j}`));
         if (dp.kind !== 'linear') return;
         const table = el('table', 'matrix-table', undefined, { 'aria-label': 'Worked example score matrix' });
@@ -135,9 +138,9 @@ export function createLearnView(getContext: () => { scoring: ScoringSpec; mode: 
         out.append(callout('error', e instanceof Error ? e.message : 'Could not compute the example.'));
       }
     };
-    for (const c of [aIn, bIn, mIn, xIn, gIn, mode]) c.addEventListener('input', redraw);
+    for (const c of [aIn, bIn, mIn, xIn, gIn, mode]) c.addEventListener('input', () => void redraw());
     c4.body.append(controls, out);
-    redraw();
+    void redraw();
 
     const c5 = card('Global vs local, linear vs affine', 'Two choices that change what “best” means.');
     const gapDemo = el('table', 'matrix-table', undefined, { 'aria-label': 'Gap cost by length' });

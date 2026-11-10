@@ -20,7 +20,7 @@ function parse(v: unknown): BackendName | null {
 
 /** True when running inside the Tauri app (the only place the Rust backend exists). */
 export function rustAvailable(): boolean {
-  return Reflect.has(window, '__TAURI_INTERNALS__');
+  return typeof window !== 'undefined' && Reflect.has(window, '__TAURI_INTERNALS__');
 }
 
 /** The backend that new jobs will use right now. */

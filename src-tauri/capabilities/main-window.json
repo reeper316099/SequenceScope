@@ -14,6 +14,7 @@
     "allow-distance-matrix",
     "allow-bootstrap-job",
     "allow-msa-job",
+    "allow-bio-op",
     "allow-cancel-job",
     "allow-smoke-active-jobs",
     "allow-smoke-report"
