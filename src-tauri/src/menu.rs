@@ -112,9 +112,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     }
     let help = help.build()?;
 
-    let mut bar = MenuBuilder::new(app);
+    let bar = MenuBuilder::new(app);
     #[cfg(target_os = "macos")]
-    {
+    let bar = {
         let app_menu = SubmenuBuilder::new(app, "SequenceScope")
             .item(&PredefinedMenuItem::about(app, None, None)?)
             .separator()
@@ -124,8 +124,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
             .separator()
             .item(&PredefinedMenuItem::quit(app, None)?)
             .build()?;
-        bar = bar.item(&app_menu);
-    }
+        bar.item(&app_menu)
+    };
     bar.item(&file).item(&edit).item(&view).item(&help).build()
 }
 
