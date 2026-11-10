@@ -24,7 +24,7 @@ export function createAboutView(): AppView {
     const ver = el('dl', 'kv');
     info.body.append(ver);
     void window.sequenceScope.getAppInfo().then((a) => {
-      ver.append(el('dt', undefined, 'Version'), el('dd', undefined, a.version), el('dt', undefined, 'Electron / Chromium'), el('dd', undefined, `${a.electron} / ${a.chrome}`), el('dt', undefined, 'Platform'), el('dd', undefined, a.platform));
+      ver.append(el('dt', undefined, 'Version'), el('dd', undefined, a.version), el('dt', undefined, 'Runtime / web view'), el('dd', undefined, `${a.runtime} / ${a.webview}`), el('dt', undefined, 'Platform'), el('dd', undefined, a.platform));
     });
     info.body.append(callout('warn', 'Educational use only. SequenceScope does not replace BLAST, MAFFT, Clustal Omega, MUSCLE, or maximum-likelihood/Bayesian phylogenetics programs (IQ-TREE, RAxML, MrBayes). The app makes no network requests; all computation happens on your computer.'));
 

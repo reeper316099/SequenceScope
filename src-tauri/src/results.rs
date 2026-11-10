@@ -109,13 +109,12 @@ impl SimpleResult {
     }
 }
 
-/// Facts shown on the About page. `electron` and `chrome` keep their old names because the UI reads them;
-/// under Tauri they carry the Tauri version and the system web view version.
+/// Facts shown on the About page: the Tauri version (`runtime`) and the system web view version (`webview`).
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct AppInfo {
     pub name: String,
     pub version: String,
-    pub electron: String,
-    pub chrome: String,
+    pub runtime: String,
+    pub webview: String,
     pub platform: String,
 }

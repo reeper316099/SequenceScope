@@ -58,8 +58,10 @@ export type OpenExternalResult = { ok: true } | { ok: false; message: string };
 export interface AppInfo {
   name: string;
   version: string;
-  electron: string;
-  chrome: string;
+  /** The runtime, e.g. "Tauri 2.12.5". */
+  runtime: string;
+  /** The system web view that shows the page. */
+  webview: string;
   platform: string;
 }
 
@@ -75,23 +77,14 @@ export interface SequenceScopeApi {
   copyText(text: string): Promise<CopyTextResult>;
 }
 
-/** IPC channel names (main registers handlers, preload invokes them). */
-export const IPC = {
-  openFile: 'sequencescope:open-file',
-  saveFile: 'sequencescope:save-file',
-  openExternal: 'sequencescope:open-external',
-  getAppInfo: 'sequencescope:get-app-info',
-  copyText: 'sequencescope:copy-text',
-} as const;
-
-/** Menu commands main may ask the renderer to perform (delivered as a DOM CustomEvent, see electron/main.ts). */
+/** Menu commands the app menu may ask the renderer to perform (delivered as a DOM CustomEvent, see src-tauri/src/menu.rs). */
 export const MENU_ACTIONS = [
   'open-fasta', 'open-newick', 'open-project', 'save-project', 'export', 'undo', 'redo',
   'toggle-dark', 'view-1', 'view-2', 'view-3', 'view-4', 'view-5', 'view-6', 'view-7',
 ] as const;
 export type MenuAction = (typeof MENU_ACTIONS)[number];
 
-/** Hard size cap for files opened through the native dialog (checked in the main process). */
+/** Hard size cap for files opened through the native dialog (checked in Rust). */
 export const MAX_OPEN_FILE_BYTES = 10 * 1024 * 1024;
 
 // ---- Bio domain types shared by src/bio, workers, UI, and project files ----

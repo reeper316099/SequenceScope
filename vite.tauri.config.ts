@@ -1,6 +1,5 @@
-// Vite config for the TAURI build of the UI: the same src/ as the Electron build, bundled on its own (no Electron plugin).
-// `npm run renderer:dev` serves it on port 5174 for `tauri dev`; `npm run renderer:build` writes out/tauri-renderer/,
-// which Tauri embeds in the app. The Electron build (electron.vite.config.ts) is untouched.
+// Vite config for the UI: bundled on its own (no Electron). `npm run renderer:dev` serves it on port 5174 for `tauri dev`;
+// `npm run renderer:build` writes out/tauri-renderer/, which Tauri embeds in the app.
 import { cpSync, createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';

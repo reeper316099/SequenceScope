@@ -35,7 +35,7 @@ export async function launch(userData = mkdtempSync(path.join(tmpdir(), 'sscope-
   const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
   await context.exposeFunction('__native', (cmd: string, args: Record<string, unknown>): unknown => {
     switch (cmd) {
-      case 'get_app_info': return { name: 'SequenceScope', version, electron: 'Tauri (bridge test)', chrome: 'Chrome', platform: process.platform };
+      case 'get_app_info': return { name: 'SequenceScope', version, runtime: 'Tauri (bridge test)', webview: 'Chrome', platform: process.platform };
       case 'copy_text': return { ok: true };
       case 'open_external': app.externals.push(String(args['url'])); return { ok: true };
       case 'save_file': {

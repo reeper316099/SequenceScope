@@ -1,5 +1,5 @@
 //! Which links the app may open in the system browser, and which pages the web view may navigate to.
-//! Port of `electron/allowlist.ts` (same three hosts, https only, no embedded credentials).
+//! The links the app may open: the same three hosts as the Electron version had, https only, no embedded credentials.
 
 use url::Url;
 

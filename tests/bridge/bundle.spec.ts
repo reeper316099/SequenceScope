@@ -10,9 +10,9 @@ test('bundled app: launches, aligns an example pair, builds a tree, exports a Ne
   test.setTimeout(120_000);
   const { app, page, userData, consoleErrors: errors, requests } = await launch();
   expect(await page.title()).toBe('SequenceScope');
-  const info = await page.evaluate(() => (window as unknown as { sequenceScope: { getAppInfo(): Promise<{ version: string; name: string; electron: string }> } }).sequenceScope.getAppInfo());
+  const info = await page.evaluate(() => (window as unknown as { sequenceScope: { getAppInfo(): Promise<{ version: string; name: string; runtime: string }> } }).sequenceScope.getAppInfo());
   expect(info).toMatchObject({ name: 'SequenceScope', version: '0.1.0' });
-  expect(info.electron).toContain('Tauri'); // the About page names the runtime
+  expect(info.runtime).toContain('Tauri'); // the About page names the runtime
   // example pair (bundled examples are served from the app's resources folder)
   const sel = page.locator('.view-align').getByLabel('Load an example pair', { exact: true });
   await expect.poll(async () => (await sel.locator('option').allInnerTexts()).some((t) => t.includes('unrelated'))).toBe(true);

@@ -42,7 +42,7 @@ impl OpenKind {
         }
     }
 
-    /// Allowed file extensions (same lists as FILE_FILTERS in electron/main.ts).
+    /// Allowed file extensions (the same lists the Electron version offered).
     pub fn extensions(self) -> &'static [&'static str] {
         match self {
             Self::Fasta => &["fasta", "fa", "faa", "fna", "fas", "txt"],

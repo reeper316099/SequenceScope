@@ -97,8 +97,8 @@ pub fn get_app_info(app: AppHandle) -> AppInfo {
     AppInfo {
         name: app.package_info().name.clone(),
         version: app.package_info().version.to_string(),
-        electron: format!("Tauri {}", tauri::VERSION),
-        chrome: tauri::webview_version().unwrap_or_else(|_| "unknown web view".to_string()),
+        runtime: format!("Tauri {}", tauri::VERSION),
+        webview: tauri::webview_version().unwrap_or_else(|_| "unknown web view".to_string()),
         platform: platform.to_string(),
     }
 }
