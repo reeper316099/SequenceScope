@@ -36,7 +36,7 @@ export function fnv1a32(bytes: Uint8Array): string {
 }
 
 /** Hash of any typed array's raw bytes. */
-export const hashTyped = (a: Int32Array | Uint8Array | Uint16Array): string => fnv1a32(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
+export const hashTyped = (a: Int32Array | Uint8Array | Uint16Array | Float64Array | Uint32Array): string => fnv1a32(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
 
 /** The 64-bit pattern of a double as 16 hex digits (exact comparison of floating-point results across languages). */
 export function bitsHex(x: number): string {

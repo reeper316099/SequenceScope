@@ -1,0 +1,1 @@
+{"backend": "rust", "only": "bootstrapSmall", "exit": 0, "rust_process_peak_mb": 103.3, "webcontent_peak_mb": 369.2, "bench": {"backend": "rust", "scenarios": [{"backend": "rust", "checksum": "7:c41b5312:0:100", "medianMs": 5, "minMs": 4, "name": "bootstrap: 100 replicates, 10 x 1144 DNA, NJ", "reps": 3, "runsMs": [5, 4, 5]}]}}

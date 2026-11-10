@@ -346,5 +346,6 @@ export async function runParity(): Promise<Check[]> {
   await shuffleParity(checks);
   await cancellation(checks);
   await uiParity(checks);
+  await (await import('./parityTrees')).runTreesParity(checks);
   return checks;
 }

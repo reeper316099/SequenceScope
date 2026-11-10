@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "bootstrapSmall", "exit": 0, "rust_process_peak_mb": 103.1, "webcontent_peak_mb": 375.8, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "7:c41b5312:0:100", "medianMs": 35, "minMs": 35, "name": "bootstrap: 100 replicates, 10 x 1144 DNA, NJ", "reps": 3, "runsMs": [40, 35, 35]}]}}

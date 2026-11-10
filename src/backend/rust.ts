@@ -2,7 +2,9 @@
 // and presents them with the same replies the TypeScript workers send. Progress arrives on a channel, the alignment tables
 // arrive as one binary frame, and cancellation is a cancel_job command.
 import { Channel, invoke } from '@tauri-apps/api/core';
-import type { AlignRequest, AlignResult, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
+import type { BootstrapResult } from '../bio/bootstrap';
+import type { AlignRequest, AlignResult, DistanceMatrix, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
+import type { BootstrapRequest, DistancesRequest } from '../workers/protocol';
 import { decodeFrame } from './frame';
 import type { JobWorker } from './types';
 
@@ -69,6 +71,23 @@ export async function rustShuffle(req: ShuffleRequest, onProgress?: (fraction: n
   return { ...r, scores: Int32Array.from(r.scores) };
 }
 
+/** Computes a distance matrix in Rust (aligned rows, or every pair aligned). The tables arrive as typed-array views. */
+export async function rustDistances(req: DistancesRequest, onProgress?: (fraction: number) => void, jobId: number = nextJobId++): Promise<DistanceMatrix> {
+  const channel = new Channel<{ fraction: number }>();
+  channel.onmessage = (m) => onProgress?.(m.fraction);
+  const buf = await invoke<ArrayBuffer>('distance_matrix', { jobId, request: req, onProgress: channel });
+  const { header, tables } = decodeFrame(buf);
+  const h = header as { names: string[]; n: number; model: DistanceMatrix['model']; gapPolicy: DistanceMatrix['gapPolicy'] };
+  return { names: h.names, n: h.n, values: tables['V'] as Float64Array, status: tables['S'] as Uint8Array, compared: tables['C'] as Uint32Array, model: h.model, gapPolicy: h.gapPolicy };
+}
+
+/** Runs the column bootstrap in Rust (on several threads; the result is identical to a single-threaded run). */
+export async function rustBootstrap(req: BootstrapRequest, onProgress?: (fraction: number) => void, jobId: number = nextJobId++): Promise<BootstrapResult> {
+  const channel = new Channel<{ fraction: number }>();
+  channel.onmessage = (m) => onProgress?.(m.fraction);
+  return invoke<BootstrapResult>('bootstrap_job', { jobId, request: req, onProgress: channel });
+}
+
 /** A JobWorker backed by Rust. `kind` selects which command a posted request goes to. */
 export class RustWorker<R> implements JobWorker<R> {
   onmessage: ((ev: { data: WorkerReply<R> }) => void) | null = null;
@@ -76,7 +95,7 @@ export class RustWorker<R> implements JobWorker<R> {
   private terminated = false;
   private jobId: number | null = null;
 
-  constructor(private readonly kind: 'align' | 'shuffle') {}
+  constructor(private readonly kind: 'align' | 'shuffle' | 'distances' | 'bootstrap') {}
 
   /** Starts the job; replies are delivered through `onmessage` unless the job was terminated first. */
   postMessage(message: unknown): void {
@@ -84,10 +103,16 @@ export class RustWorker<R> implements JobWorker<R> {
     this.jobId = jobId;
     const send = (reply: WorkerReply<R>): void => { if (!this.terminated) this.onmessage?.({ data: reply }); };
     // The Align view treats ANY first message as "the worker is done" (the TypeScript align worker sends only the result), so
-    // alignment progress is not forwarded here; it is still reported to callers of rustAlign() directly. The shuffle panel
-    // does show progress, so shuffle progress is forwarded.
+    // alignment progress is not forwarded here; it is still reported to callers of rustAlign() directly. The shuffle,
+    // distances and bootstrap views do show progress, so theirs is forwarded.
     const progress = (fraction: number): void => send({ type: 'progress', fraction });
-    const run: Promise<unknown> = this.kind === 'align' ? rustAlign(message as AlignRequest, undefined, jobId).then((o) => o.result) : rustShuffle(message as ShuffleRequest, progress, jobId);
+    let run: Promise<unknown>;
+    switch (this.kind) {
+      case 'align': run = rustAlign(message as AlignRequest, undefined, jobId).then((o) => o.result); break;
+      case 'shuffle': run = rustShuffle(message as ShuffleRequest, progress, jobId); break;
+      case 'distances': run = rustDistances(message as DistancesRequest, progress, jobId); break;
+      case 'bootstrap': run = rustBootstrap(message as BootstrapRequest, progress, jobId); break;
+    }
     run.then(
       (value) => send({ type: 'result', value: value as R }),
       (e: unknown) => {

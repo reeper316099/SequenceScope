@@ -14,6 +14,7 @@
 //!  * Co-optimal alignments can be enumerated up to a hard cap.
 
 use crate::error::{BioError, BioErrorCode};
+use crate::jsnum::group_thousands;
 use crate::scoring::{CompiledScoring, encode_residues};
 use crate::types::{AlignMode, PairwiseAlignment};
 
@@ -76,19 +77,6 @@ pub struct Dp {
     pub tables: Tables,
 }
 
-/// Inserts thousands separators ("25,020,004") like JavaScript's `toLocaleString('en-US')`.
-fn group_thousands(n: usize) -> String {
-    let digits = n.to_string();
-    let mut out = String::new();
-    for (k, ch) in digits.chars().enumerate() {
-        if k > 0 && (digits.len() - k).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(ch);
-    }
-    out
-}
-
 /// Refuses requests whose DP tables would exceed the memory cap (a typed error, not a crash).
 pub fn assert_within_cap(m: usize, n: usize, affine: bool) -> Result<(), BioError> {
     let cells = (m + 1) * (n + 1);
@@ -99,8 +87,8 @@ pub fn assert_within_cap(m: usize, n: usize, affine: bool) -> Result<(), BioErro
             BioErrorCode::TooLarge,
             format!(
                 "Aligning {m} x {n} residues needs about {mb} MB ({} cells); the limit is {} cells.",
-                group_thousands(cells),
-                group_thousands(MAX_DP_CELLS)
+                group_thousands(cells as u64),
+                group_thousands(MAX_DP_CELLS as u64)
             ),
         ));
     }
@@ -746,13 +734,6 @@ mod tests {
         let r = run("GCATGCG", "GATTACA", AlignMode::Global, &sc);
         assert_eq!(r.score, 0);
         assert_eq!((r.start_a, r.end_a, r.start_b, r.end_b), (0, 7, 0, 7));
-    }
-
-    #[test]
-    fn group_thousands_matches_the_en_us_locale() {
-        assert_eq!(group_thousands(25_010_001), "25,010,001");
-        assert_eq!(group_thousands(999), "999");
-        assert_eq!(group_thousands(1000), "1,000");
     }
 
     // Ported from tests/unit/edge-cases.test.ts.

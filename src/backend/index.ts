@@ -5,7 +5,8 @@
 //      variable, or by tests)
 //   2. localStorage "sequencescope.backend"  (same values; set it from the developer console to flip the app)
 //   3. "ts"
-import type { AlignResult, ShuffleSummary, WorkerReply } from '../shared/types';
+import type { BootstrapResult } from '../bio/bootstrap';
+import type { AlignResult, DistanceMatrix, ShuffleSummary, WorkerReply } from '../shared/types';
 import { RustWorker } from './rust';
 import type { BackendName, JobWorker } from './types';
 
@@ -62,4 +63,16 @@ export function createPairwiseWorker(backend: BackendName = selectedBackend()): 
 export function createShuffleWorker(backend: BackendName = selectedBackend()): JobWorker<ShuffleSummary> {
   if (backend === 'rust') return new RustWorker<ShuffleSummary>('shuffle');
   return new TsWorker<ShuffleSummary>(new Worker(new URL('../workers/shuffle.worker.ts', import.meta.url), { type: 'module' }));
+}
+
+/** A worker that computes ONE distance matrix (request: DistancesRequest, result: DistanceMatrix). */
+export function createDistancesWorker(backend: BackendName = selectedBackend()): JobWorker<DistanceMatrix> {
+  if (backend === 'rust') return new RustWorker<DistanceMatrix>('distances');
+  return new TsWorker<DistanceMatrix>(new Worker(new URL('../workers/distances.worker.ts', import.meta.url), { type: 'module' }));
+}
+
+/** A worker that runs ONE column bootstrap (request: BootstrapRequest, result: BootstrapResult). */
+export function createBootstrapWorker(backend: BackendName = selectedBackend()): JobWorker<BootstrapResult> {
+  if (backend === 'rust') return new RustWorker<BootstrapResult>('bootstrap');
+  return new TsWorker<BootstrapResult>(new Worker(new URL('../workers/bootstrap.worker.ts', import.meta.url), { type: 'module' }));
 }

@@ -2,6 +2,7 @@
 // (src/bio/rng.ts), and the Rust benchmark (crates/sequencescope-core/examples/bench.rs) generates the SAME sequences
 // with its port of that PRNG, so TypeScript and Rust are timed on identical inputs.
 import { createRng } from '../bio/rng';
+import type { BootstrapRequest, DistancesRequest } from '../workers/protocol';
 import type { AlignMode, AlignRequest, Alphabet, GapModel, ScoringSpec, ShuffleRequest } from '../shared/types';
 
 export const DNA = 'ACGT';
@@ -13,6 +14,13 @@ export function randomSeq(seed: number, len: number, letters: string): string {
   let s = '';
   for (let i = 0; i < len; i++) s += letters.charAt(rng.nextInt(letters.length));
   return s;
+}
+
+/** An alignment of `n` related rows: one random base row, each other row mutated at ~15% of sites (seeded; the Rust benchmark uses the same recipe). */
+export function alignmentRows(seed: number, n: number, len: number, letters: string): string[] {
+  const rng = createRng(seed);
+  const base = Array.from({ length: len }, () => letters.charAt(rng.nextInt(letters.length)));
+  return Array.from({ length: n }, () => base.map((c) => (rng.nextInt(100) < 15 ? letters.charAt(rng.nextInt(letters.length)) : c)).join(''));
 }
 
 export const dnaScoring = (gaps: GapModel): ScoringSpec => ({ substitution: { kind: 'simple', match: 2, mismatch: -3 }, gaps });
@@ -29,5 +37,11 @@ export const SCENARIOS = {
   medium: () => alignRequest(randomSeq(21, 1000, PROTEIN), randomSeq(22, 1000, PROTEIN), 'protein', 'global', blosum62({ kind: 'affine', open: 11, extend: 1 })),
   largestProteinAffine: () => alignRequest(randomSeq(31, 5000, PROTEIN), randomSeq(32, 5000, PROTEIN), 'protein', 'global', blosum62({ kind: 'affine', open: 11, extend: 1 })),
   largestDnaLinear: () => alignRequest(randomSeq(33, 5000, DNA), randomSeq(34, 5000, DNA), 'dna', 'global', dnaScoring({ kind: 'linear', gap: 4 })),
+  distancesUnaligned: (): DistancesRequest => ({
+    type: 'distances', mode: 'unaligned', alphabet: 'dna', model: 'p', gapPolicy: 'pairwise-deletion', scoring: dnaScoring({ kind: 'affine', open: 5, extend: 1 }),
+    seqs: alignmentRows(51, 30, 400, DNA).map((r, i) => ({ id: `s${i}`, description: '', alphabet: 'dna' as const, residues: r.replace(/-/g, '') })),
+  }),
+  bootstrapSmall: (): BootstrapRequest => ({ type: 'bootstrap', input: { names: Array.from({ length: 10 }, (_, i) => `t${i}`), rows: alignmentRows(61, 10, 1144, DNA), alphabet: 'dna', model: 'p', gapPolicy: 'pairwise-deletion', method: 'nj', replicates: 100, seed: 2026 } }),
+  bootstrapLarge: (): BootstrapRequest => ({ type: 'bootstrap', input: { names: Array.from({ length: 50 }, (_, i) => `t${i}`), rows: alignmentRows(62, 50, 3000, DNA), alphabet: 'dna', model: 'p', gapPolicy: 'pairwise-deletion', method: 'nj', replicates: 100, seed: 2026 } }),
   shuffle: (): ShuffleRequest => ({ type: 'shuffle', a: randomSeq(41, 300, DNA), b: randomSeq(42, 300, DNA), alphabet: 'dna', mode: 'local', scoring: dnaScoring({ kind: 'affine', open: 5, extend: 1 }), shuffles: 1000, seed: 7 }),
 } as const;

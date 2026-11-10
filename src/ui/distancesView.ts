@@ -1,4 +1,6 @@
 // Distances view (Milestone B): load a sequence set, choose a distance model and gap policy, see a heatmap and a sortable table.
+import { createDistancesWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import type { Alphabet, AlphabetChoice, DistanceMatrix, DistanceModel, GapPolicy, WorkerReply } from '../shared/types';
 import { DIST_OK, DIST_SATURATED } from '../shared/types';
 import { modelsFor, toDistanceCsv, toPhylip, unusablePairs } from '../bio/distance';
@@ -29,7 +31,7 @@ const POLICY_TEXT: Record<GapPolicy, { label: string; text: string }> = {
 export function createDistancesView(store: DataStore, goToTrees: () => void): AppView & { loadText(text: string, mode: SetMode | 'auto', fromMsa?: boolean): void } {
   const root = el('div', 'view view-distances');
   const heatmap = createHeatmap();
-  let worker: Worker | null = null;
+  let worker: JobWorker<DistanceMatrix> | null = null;
   let sortKey: { by: 'name' } | { by: 'column'; col: number } = { by: 'name' };
   let sortDir: 'asc' | 'desc' = 'asc';
   let status: { kind: 'idle' | 'running' | 'error' | 'done'; progress?: number; message?: string } = { kind: 'idle' };
@@ -182,8 +184,8 @@ export function createDistancesView(store: DataStore, goToTrees: () => void): Ap
       ? { type: 'distances', mode: 'aligned', names: a.records.map((r) => r.id), rows: a.records.map((r) => r.residues), alphabet, model: s.model, gapPolicy: s.gapPolicy }
       : { type: 'distances', mode: 'unaligned', seqs: a.records, alphabet, model: s.model, gapPolicy: s.gapPolicy, scoring: (PRESETS.find((p) => p.id === s.presetId)?.scoring ?? defaultPreset(alphabet).scoring) };
     status = { kind: 'running', progress: 0 }; showStatus();
-    worker = new Worker(new URL('../workers/distances.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (ev: MessageEvent<WorkerReply<DistanceMatrix>>) => {
+    worker = createDistancesWorker();
+    worker.onmessage = (ev: { data: WorkerReply<DistanceMatrix> }) => {
       const m = ev.data;
       if (m.type === 'progress') { status = { kind: 'running', progress: m.fraction }; showStatus(); return; }
       worker?.terminate(); worker = null;

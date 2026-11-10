@@ -4,11 +4,14 @@
 //! unit-tested directly; the `#[tauri::command]` functions below only connect them to the page.
 
 use crate::dto::{
-    AlignHeaderDto, AlignRequestDto, AlignmentDto, DpMetaDto, ProgressDto, ShuffleRequestDto, ShuffleSummaryDto,
-    TimingsDto, parse_alphabet, parse_mode, parse_request,
+    AlignHeaderDto, AlignRequestDto, AlignmentDto, BootstrapRequestDto, BootstrapResultDto, DistancesRequestDto,
+    DpMetaDto, MatrixHeaderDto, ProgressDto, ShuffleRequestDto, ShuffleSummaryDto, TimingsDto, parse_alphabet,
+    parse_mode, parse_model, parse_policy, parse_request,
 };
 use crate::frame::{Table, encode_frame};
 use crate::jobs::{JobError, Jobs};
+use sequencescope_core::bootstrap::bootstrap_threads;
+use sequencescope_core::distance::{distance_matrix_from_aligned, pairwise_distance_matrix};
 use sequencescope_core::pairwise::{Dp, Tables, fill_matrix_cancellable, traceback_all, traceback_first};
 use sequencescope_core::scoring::compile_scoring;
 use sequencescope_core::shuffle::{ShuffleOptions, ShuffleOutcome, run_shuffle_test};
@@ -107,6 +110,79 @@ pub fn run_shuffle(
     }
 }
 
+/// Runs one distance-matrix job and returns the result as a binary frame (JSON header + values/status/compared tables).
+/// `progress` is called while aligning every pair (unaligned mode); the job stops with "cancelled" when `cancel` becomes true.
+pub fn run_distances(
+    req: &DistancesRequestDto,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(f64),
+) -> Result<Vec<u8>, JobError> {
+    let m = match req {
+        DistancesRequestDto::Aligned {
+            names,
+            rows,
+            alphabet,
+            model,
+            gap_policy,
+        } => distance_matrix_from_aligned(
+            names,
+            rows,
+            parse_alphabet(alphabet)?,
+            parse_model(model)?,
+            parse_policy(gap_policy)?,
+            None,
+        )?,
+        DistancesRequestDto::Unaligned {
+            seqs,
+            alphabet,
+            model,
+            gap_policy,
+            scoring,
+        } => {
+            let alphabet = parse_alphabet(alphabet)?;
+            let scoring = compile_scoring(&scoring.to_core()?, alphabet)?;
+            let sequences: Vec<_> = seqs.iter().map(|s| s.to_core(alphabet)).collect();
+            pairwise_distance_matrix(
+                &sequences,
+                &scoring,
+                parse_model(model)?,
+                parse_policy(gap_policy)?,
+                progress,
+                &mut || cancel.load(Ordering::Relaxed),
+            )?
+            .ok_or_else(JobError::cancelled)?
+        }
+    };
+    let header = MatrixHeaderDto {
+        names: m.names.clone(),
+        n: m.n,
+        model: m.model.as_str(),
+        gap_policy: m.gap_policy.as_str(),
+    };
+    let json = serde_json::to_vec(&header)
+        .map_err(|e| JobError::new("internal", format!("Could not encode the result: {e}")))?;
+    Ok(encode_frame(
+        &json,
+        vec![
+            Table::F64(b'V', m.values),
+            Table::U8(b'S', m.status),
+            Table::U32(b'C', m.compared),
+        ],
+    ))
+}
+
+/// Runs the column bootstrap on several threads (the result is identical to a single-threaded run) and returns it as JSON.
+pub fn run_bootstrap(
+    req: &BootstrapRequestDto,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(f64),
+) -> Result<BootstrapResultDto, JobError> {
+    let input = req.input.to_core()?;
+    let threads = std::thread::available_parallelism().map_or(1, |n| n.get()).min(8);
+    let result = bootstrap_threads(&input, threads, progress, cancel)?.ok_or_else(JobError::cancelled)?;
+    Ok(BootstrapResultDto::from(&result))
+}
+
 /// Sends progress to the page at most once per percent (and always the final 100%), like the TypeScript workers.
 fn throttled(channel: Channel<ProgressDto>) -> impl FnMut(f64) {
     let mut last = 0.0;
@@ -153,6 +229,36 @@ pub async fn shuffle_test(
     let req: ShuffleRequestDto = parse_request(request)?;
     let cancel = jobs.register(job_id);
     let result = on_worker_thread(move || run_shuffle(&req, &cancel, &mut throttled(on_progress))).await;
+    jobs.finish(job_id);
+    result
+}
+
+/// Computes a distance matrix and returns it as one binary frame. `job_id` lets the page cancel it with `cancel_job`.
+#[tauri::command]
+pub async fn distance_matrix(
+    jobs: State<'_, Jobs>,
+    job_id: u64,
+    request: Value,
+    on_progress: Channel<ProgressDto>,
+) -> Result<Response, JobError> {
+    let req: DistancesRequestDto = parse_request(request)?;
+    let cancel = jobs.register(job_id);
+    let result = on_worker_thread(move || run_distances(&req, &cancel, &mut throttled(on_progress))).await;
+    jobs.finish(job_id);
+    result.map(Response::new)
+}
+
+/// Runs the column bootstrap and returns its result as JSON.
+#[tauri::command]
+pub async fn bootstrap_job(
+    jobs: State<'_, Jobs>,
+    job_id: u64,
+    request: Value,
+    on_progress: Channel<ProgressDto>,
+) -> Result<BootstrapResultDto, JobError> {
+    let req: BootstrapRequestDto = parse_request(request)?;
+    let cancel = jobs.register(job_id);
+    let result = on_worker_thread(move || run_bootstrap(&req, &cancel, &mut throttled(on_progress))).await;
     jobs.finish(job_id);
     result
 }
@@ -304,6 +410,105 @@ mod tests {
             bad_cap.expect_err("cap 0").message,
             "Enumeration cap must be a positive integer."
         );
+    }
+
+    fn frame_json_and_tables(frame: &[u8]) -> (Value, Vec<(u8, usize)>) {
+        let u32_at = |o: usize| u32::from_le_bytes([frame[o], frame[o + 1], frame[o + 2], frame[o + 3]]) as usize;
+        let (json_len, count) = (u32_at(4), u32_at(8));
+        let start = 16 + 16 * count;
+        let tables = (0..count)
+            .map(|t| (frame[16 + 16 * t], u32_at(16 + 16 * t + 8)))
+            .collect();
+        (
+            serde_json::from_slice(&frame[start..start + json_len]).expect("json header"),
+            tables,
+        ) // test code
+    }
+
+    #[test]
+    fn aligned_distance_job_returns_a_frame_with_values_status_and_compared() {
+        let req: DistancesRequestDto = parse_request(json!({ "type": "distances", "mode": "aligned", "names": ["a", "b", "c"], "rows": ["ACGTACGT", "ACGAACGA", "TCGTACGT"], "alphabet": "dna", "model": "jc", "gapPolicy": "pairwise-deletion" })).expect("valid"); // test code
+        let frame = run_distances(&req, &AtomicBool::new(false), &mut |_| {}).expect("computes"); // test code
+        let (header, tables) = frame_json_and_tables(&frame);
+        assert_eq!(
+            (
+                header["n"].as_u64(),
+                header["model"].as_str(),
+                header["names"][2].as_str()
+            ),
+            (Some(3), Some("jc"), Some("c"))
+        );
+        assert_eq!(tables, vec![(3, 9), (1, 9), (4, 9)], "f64 x 9, u8 x 9, u32 x 9");
+    }
+
+    #[test]
+    fn unaligned_distance_job_reports_progress_and_can_be_cancelled() {
+        let seqs = json!([{ "id": "a", "residues": "ACGTACGTAC" }, { "id": "b", "residues": "ACGTTCGTAC" }, { "id": "c", "residues": "ACGAACGTAC" }, { "id": "d", "residues": "ACGTACGAAC" }]);
+        let req: DistancesRequestDto = parse_request(json!({ "type": "distances", "mode": "unaligned", "seqs": seqs, "alphabet": "dna", "model": "p", "gapPolicy": "pairwise-deletion", "scoring": affine_dna() })).expect("valid"); // test code
+        let mut seen = Vec::new();
+        run_distances(&req, &AtomicBool::new(false), &mut |f| seen.push(f)).expect("computes"); // test code
+        assert_eq!(seen.len(), 6, "one update per pair");
+        assert_eq!(seen.last(), Some(&1.0));
+        assert_eq!(
+            run_distances(&req, &AtomicBool::new(true), &mut |_| {})
+                .expect_err("cancelled")
+                .code,
+            "cancelled"
+        );
+    }
+
+    #[test]
+    fn distance_errors_keep_core_codes_and_messages() {
+        let bad: DistancesRequestDto = parse_request(json!({ "type": "distances", "mode": "aligned", "names": ["a", "b"], "rows": ["MK", "MK"], "alphabet": "protein", "model": "jc", "gapPolicy": "pairwise-deletion" })).expect("valid shape"); // test code
+        let e = run_distances(&bad, &AtomicBool::new(false), &mut |_| {}).expect_err("wrong model"); // test code
+        assert_eq!(
+            (e.code.as_str(), e.message.as_str()),
+            (
+                "incompatible-model",
+                "The Jukes–Cantor model cannot be used for protein sequences."
+            )
+        );
+    }
+
+    fn bootstrap_req(replicates: f64, seed: f64) -> BootstrapRequestDto {
+        parse_request(json!({ "type": "bootstrap", "input": { "names": ["A", "B", "C", "D"], "rows": ["AACCGGTTAACC", "AACCGGTTAACG", "ACCCGGATAACC", "TTCCGGTTAACC"], "alphabet": "dna", "model": "p", "gapPolicy": "pairwise-deletion", "method": "nj", "replicates": replicates, "seed": seed } })).expect("valid") // test code
+    }
+
+    #[test]
+    fn bootstrap_job_is_deterministic_and_reports_progress() {
+        let mut seen = Vec::new();
+        let a = run_bootstrap(&bootstrap_req(40.0, 7.0), &AtomicBool::new(false), &mut |f| {
+            seen.push(f)
+        })
+        .expect("runs"); // test code
+        let b = run_bootstrap(&bootstrap_req(40.0, 7.0), &AtomicBool::new(false), &mut |_| {}).expect("runs"); // test code
+        assert_eq!(
+            serde_json::to_value(&a).expect("json"),
+            serde_json::to_value(&b).expect("json")
+        ); // test code
+        assert_eq!((a.replicates, a.seed), (40, 7));
+        assert_eq!(seen.last(), Some(&1.0));
+        assert_eq!(
+            run_bootstrap(&bootstrap_req(40.0, 7.0), &AtomicBool::new(true), &mut |_| {})
+                .expect_err("cancelled")
+                .code,
+            "cancelled"
+        );
+    }
+
+    #[test]
+    fn bootstrap_validation_errors_match_the_typescript_wording() {
+        let e =
+            run_bootstrap(&bootstrap_req(0.0, 1.0), &AtomicBool::new(false), &mut |_| {}).expect_err("zero replicates"); // test code
+        assert_eq!(
+            (e.code.as_str(), e.message.as_str()),
+            ("invalid-argument", "Replicates must be a whole number from 1 to 1000.")
+        );
+        let e = run_bootstrap(&bootstrap_req(10.5, 1.0), &AtomicBool::new(false), &mut |_| {})
+            .expect_err("fractional replicates"); // test code
+        assert_eq!(e.message, "Replicates must be a whole number from 1 to 1000.");
+        let e = run_bootstrap(&bootstrap_req(10.0, -1.0), &AtomicBool::new(false), &mut |_| {}).expect_err("bad seed"); // test code
+        assert_eq!(e.message, "Seed must be an integer from 0 to 4294967295, got -1.");
     }
 
     fn shuffle_req(shuffles: u32, seed: u32) -> ShuffleRequestDto {

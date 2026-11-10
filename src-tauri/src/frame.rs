@@ -8,18 +8,20 @@
 //!   8   u32  table_count
 //!  12   u32  0             reserved
 //!  16   table_count x 16-byte entries: [u8 kind][u8 name][6 zero bytes][u64 element_count]
-//!                          kind: 0 = i32, 1 = u8, 2 = u16;  name: one ASCII letter (H, P, M, X, Y)
+//!                          kind: 0 = i32, 1 = u8, 2 = u16, 3 = f64, 4 = u32;  name: one ASCII letter (H, P, M, X, Y, V, S, C)
 //!  16+16*count   json header bytes (json_len), then zero padding up to a multiple of 8
 //!  then every table in order, each padded up to a multiple of 8
 //! ```
 //! The matching decoder is `src/backend/frame.ts`; both sides are tested against this description.
 
 /// One table of numbers to ship (owned, so it can be freed as soon as it has been copied into the frame).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Table {
     I32(u8, Vec<i32>),
     U8(u8, Vec<u8>),
     U16(u8, Vec<u16>),
+    F64(u8, Vec<f64>),
+    U32(u8, Vec<u32>),
 }
 
 impl Table {
@@ -29,6 +31,8 @@ impl Table {
             Self::I32(name, v) => (0, *name, v.len(), 4),
             Self::U8(name, v) => (1, *name, v.len(), 1),
             Self::U16(name, v) => (2, *name, v.len(), 2),
+            Self::F64(name, v) => (3, *name, v.len(), 8),
+            Self::U32(name, v) => (4, *name, v.len(), 4),
         }
     }
 
@@ -38,6 +42,8 @@ impl Table {
             Self::I32(_, v) => v.iter().for_each(|x| out.extend_from_slice(&x.to_le_bytes())),
             Self::U8(_, v) => out.extend_from_slice(&v),
             Self::U16(_, v) => v.iter().for_each(|x| out.extend_from_slice(&x.to_le_bytes())),
+            Self::F64(_, v) => v.iter().for_each(|x| out.extend_from_slice(&x.to_le_bytes())),
+            Self::U32(_, v) => v.iter().for_each(|x| out.extend_from_slice(&x.to_le_bytes())),
         }
     }
 }
@@ -96,9 +102,10 @@ mod tests {
             let e = 16 + 16 * t;
             let n = u64::from_le_bytes(buf[e + 8..e + 16].try_into().expect("8 bytes")) as usize; // test code
             let size = match buf[e] {
-                0 => 4,
+                0 | 4 => 4,
                 1 => 1,
-                _ => 2,
+                2 => 2,
+                _ => 8,
             };
             assert_eq!(pos % 8, 0, "every table starts on an 8-byte boundary");
             tables.push((buf[e], buf[e + 1], buf[pos..pos + n * size].to_vec()));
@@ -132,6 +139,37 @@ mod tests {
         assert_eq!(
             tables[2],
             (2, b'P', [513u16, 7].iter().flat_map(|x| x.to_le_bytes()).collect())
+        );
+    }
+
+    #[test]
+    fn round_trips_f64_and_u32_tables_exactly() {
+        let doubles = [0.1 + 0.2, -0.0, f64::MIN_POSITIVE, 1e300];
+        let frame = encode_frame(
+            b"{}",
+            vec![
+                Table::F64(b'V', doubles.to_vec()),
+                Table::U32(b'C', vec![0, 1, u32::MAX]),
+            ],
+        );
+        let (_, tables) = decode(&frame);
+        let back: Vec<f64> = tables[0]
+            .2
+            .chunks(8)
+            .map(|c| f64::from_le_bytes(c.try_into().expect("8 bytes")))
+            .collect(); // test code
+        assert_eq!(
+            back.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+            doubles.iter().map(|x| x.to_bits()).collect::<Vec<_>>(),
+            "bit-exact"
+        );
+        assert_eq!((tables[0].0, tables[1].0), (3, 4));
+        assert_eq!(
+            tables[1].2,
+            [0u32, 1, u32::MAX]
+                .iter()
+                .flat_map(|x| x.to_le_bytes())
+                .collect::<Vec<u8>>()
         );
     }
 

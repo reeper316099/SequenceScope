@@ -14,6 +14,8 @@ Tauri's rule: the web page can only call what a *capability file* allows. Ours i
 | `allow-copy-text` | `copy_text` | Copy a Newick string | Text only, ≤ 5 MB |
 | `allow-align-pair` | `align_pair` | Run an alignment in Rust | Request shape and numbers validated (whole numbers in range, known alphabet/mode/matrix, enumeration cap ≥ 1); sequences limited by the 5001² cell cap; runs on a worker thread; cancellable |
 | `allow-shuffle-test` | `shuffle_test` | Run the seeded shuffle significance test in Rust | 1–5000 shuffles, seed 0–4294967295, same checks as above; cancellable |
+| `allow-distance-matrix` | `distance_matrix` | Compute a distance matrix in Rust (aligned rows, or every pair aligned) | Request shape checked; model must fit the alphabet; at most 100 sequences and 1.5 billion pairwise cell updates; cancellable |
+| `allow-bootstrap-job` | `bootstrap_job` | Run the column bootstrap in Rust (on several threads) | 3–100 sequences, ≤ 50,000 columns, 1–1000 replicates, seed 0–4294967295, ≤ 5 billion column comparisons; cancellable |
 | `allow-cancel-job` | `cancel_job` | Stop a running alignment/shuffle (the page's Cancel button) | Only sets a flag for the job id; harmless for unknown or finished ids |
 | `allow-smoke-active-jobs` | `smoke_active_jobs` | Smoke test proves a cancelled job really stopped | Refuses unless the process was started with `SEQUENCESCOPE_SMOKE=1` |
 | `allow-smoke-report` | `smoke_report` | Hidden-window smoke test reports its result | Refuses unless the process was started with `SEQUENCESCOPE_SMOKE=1`, so it does nothing in a normal run |

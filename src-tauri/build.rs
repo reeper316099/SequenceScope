@@ -10,6 +10,8 @@ fn main() {
             "copy_text",
             "align_pair",
             "shuffle_test",
+            "distance_matrix",
+            "bootstrap_job",
             "cancel_job",
             "smoke_active_jobs",
             "smoke_report",

@@ -43,7 +43,16 @@ pub fn backend() -> Option<&'static str> {
 
 /// Optional benchmark filter: run only one scenario (so peak memory can be attributed to it). Only known names get through.
 pub fn bench_only() -> Option<&'static str> {
-    const NAMES: [&str; 5] = ["small", "medium", "largestDnaLinear", "largestProteinAffine", "shuffle"];
+    const NAMES: [&str; 8] = [
+        "small",
+        "medium",
+        "largestDnaLinear",
+        "largestProteinAffine",
+        "shuffle",
+        "distancesUnaligned",
+        "bootstrapSmall",
+        "bootstrapLarge",
+    ];
     let wanted = std::env::var("SEQUENCESCOPE_BENCH_ONLY").ok()?;
     NAMES.into_iter().find(|n| *n == wanted)
 }

@@ -4,10 +4,14 @@
 //! in range, with the SAME error messages the TypeScript code produces.
 
 use crate::jobs::JobError;
+use sequencescope_core::bootstrap::{BootstrapInput, BootstrapResult, TreeMethod};
+use sequencescope_core::distance::{DistanceModel, GapPolicy};
 use sequencescope_core::error::{BioError, BioErrorCode};
+use sequencescope_core::fasta::Sequence;
 use sequencescope_core::pairwise::MAX_ENUMERATED_ALIGNMENTS;
 use sequencescope_core::rng::check_seed;
 use sequencescope_core::shuffle::{MAX_SHUFFLES, ShuffleSummary};
+use sequencescope_core::tree::{Tree, TreeNode};
 use sequencescope_core::types::{AlignMode, Alphabet, GapModel, PairwiseAlignment, ScoringSpec, SubstitutionSpec};
 use serde::{Deserialize, Serialize};
 
@@ -231,6 +235,210 @@ impl From<ShuffleSummary> for ShuffleSummaryDto {
             p_value: s.p_value,
         }
     }
+}
+
+/// One sequence of an unaligned distance request.
+#[derive(Debug, Deserialize)]
+pub struct SeqDto {
+    pub id: String,
+    #[serde(default)]
+    pub description: String,
+    pub residues: String,
+}
+
+/// A distance-matrix job: from rows that are already aligned, or from unaligned sequences (every pair aligned).
+#[derive(Debug, Deserialize)]
+#[serde(tag = "mode", rename_all = "lowercase")]
+pub enum DistancesRequestDto {
+    Aligned {
+        names: Vec<String>,
+        rows: Vec<String>,
+        alphabet: String,
+        model: String,
+        #[serde(rename = "gapPolicy")]
+        gap_policy: String,
+    },
+    Unaligned {
+        seqs: Vec<SeqDto>,
+        alphabet: String,
+        model: String,
+        #[serde(rename = "gapPolicy")]
+        gap_policy: String,
+        scoring: ScoringDto,
+    },
+}
+
+impl SeqDto {
+    /// Converts to a core sequence of the given alphabet.
+    pub fn to_core(&self, alphabet: sequencescope_core::types::Alphabet) -> Sequence {
+        Sequence {
+            id: self.id.clone(),
+            description: self.description.clone(),
+            alphabet,
+            residues: self.residues.clone(),
+        }
+    }
+}
+
+/// Parses a distance model name.
+pub fn parse_model(s: &str) -> Result<DistanceModel, BioError> {
+    DistanceModel::parse(s).ok_or_else(|| {
+        BioError::new(
+            BioErrorCode::InvalidArgument,
+            format!("Unknown distance model \"{s}\"."),
+        )
+    })
+}
+
+/// Parses a gap policy name.
+pub fn parse_policy(s: &str) -> Result<GapPolicy, BioError> {
+    GapPolicy::parse(s)
+        .ok_or_else(|| BioError::new(BioErrorCode::InvalidArgument, format!("Unknown gap policy \"{s}\".")))
+}
+
+/// The bootstrap settings as the page sends them (numbers arrive as f64 and are checked).
+#[derive(Debug, Deserialize)]
+pub struct BootstrapInputDto {
+    pub names: Vec<String>,
+    pub rows: Vec<String>,
+    pub alphabet: String,
+    pub model: String,
+    #[serde(rename = "gapPolicy")]
+    pub gap_policy: String,
+    pub method: String,
+    pub replicates: f64,
+    pub seed: f64,
+}
+
+/// A bootstrap job (`type: 'bootstrap'` is ignored).
+#[derive(Debug, Deserialize)]
+pub struct BootstrapRequestDto {
+    pub input: BootstrapInputDto,
+}
+
+impl BootstrapInputDto {
+    /// Converts to the core input. A replicate count that is not a whole number in range becomes 0, which the core's
+    /// validation rejects with the same message at the same point as the TypeScript code.
+    pub fn to_core(&self) -> Result<BootstrapInput, BioError> {
+        let replicates = if self.replicates.fract() == 0.0 && (1.0..=1000.0).contains(&self.replicates) {
+            self.replicates as u32
+        } else {
+            0
+        };
+        Ok(BootstrapInput {
+            names: self.names.clone(),
+            rows: self.rows.clone(),
+            alphabet: parse_alphabet(&self.alphabet)?,
+            model: parse_model(&self.model)?,
+            gap_policy: parse_policy(&self.gap_policy)?,
+            method: TreeMethod::parse(&self.method).ok_or_else(|| {
+                BioError::new(
+                    BioErrorCode::InvalidArgument,
+                    format!("Unknown tree method \"{}\".", self.method),
+                )
+            })?,
+            replicates,
+            seed: check_seed(self.seed)?,
+        })
+    }
+}
+
+/// A tree node as JSON, shaped like the TypeScript `TreeNode` (fields that are absent are left out).
+#[derive(Debug, Serialize)]
+pub struct TreeNodeDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub length: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub support: Option<f64>,
+    pub children: Vec<TreeNodeDto>,
+}
+
+impl From<&TreeNode> for TreeNodeDto {
+    /// Copies a node and its subtree.
+    fn from(n: &TreeNode) -> Self {
+        Self {
+            name: n.name.clone(),
+            label: n.label.clone(),
+            length: n.length,
+            support: n.support,
+            children: n.children.iter().map(Self::from).collect(),
+        }
+    }
+}
+
+/// A tree as JSON (`{ root }`).
+#[derive(Debug, Serialize)]
+pub struct TreeDto {
+    pub root: TreeNodeDto,
+}
+
+impl From<&Tree> for TreeDto {
+    /// Copies a tree.
+    fn from(t: &Tree) -> Self {
+        Self {
+            root: TreeNodeDto::from(&t.root),
+        }
+    }
+}
+
+/// Support for one split.
+#[derive(Debug, Serialize)]
+pub struct SupportDto {
+    pub leaves: Vec<String>,
+    pub count: u32,
+    pub percent: f64,
+}
+
+/// The bootstrap result, shaped like the TypeScript `BootstrapResult`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapResultDto {
+    pub reference_tree: TreeDto,
+    pub supports: Vec<SupportDto>,
+    pub replicates: u32,
+    pub seed: u32,
+    pub failed_replicates: u32,
+    pub method: &'static str,
+    pub model: &'static str,
+    pub gap_policy: &'static str,
+}
+
+impl From<&BootstrapResult> for BootstrapResultDto {
+    /// Copies the finished bootstrap into its JSON form.
+    fn from(r: &BootstrapResult) -> Self {
+        Self {
+            reference_tree: TreeDto::from(&r.reference_tree),
+            supports: r
+                .supports
+                .iter()
+                .map(|s| SupportDto {
+                    leaves: s.leaves.clone(),
+                    count: s.count,
+                    percent: s.percent,
+                })
+                .collect(),
+            replicates: r.replicates,
+            seed: r.seed,
+            failed_replicates: r.failed_replicates,
+            method: r.method.as_str(),
+            model: r.model.as_str(),
+            gap_policy: r.gap_policy.as_str(),
+        }
+    }
+}
+
+/// The header of a distance-matrix frame (the three tables travel as binary: values V, status S, compared C).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MatrixHeaderDto {
+    pub names: Vec<String>,
+    pub n: usize,
+    pub model: &'static str,
+    pub gap_policy: &'static str,
 }
 
 /// A progress message (`fraction` is 0..1).

@@ -1,5 +1,7 @@
 // Trees view (Milestone B): build UPGMA / neighbor-joining trees from the Distances view, step through every merge,
 // view and edit the tree, import/export Newick, bootstrap (aligned input only), and compare trees.
+import { createBootstrapWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import type { BootstrapResult } from '../bio/bootstrap';
 import { MAX_REPLICATES } from '../bio/bootstrap';
 import { BioError } from '../bio/errors';
@@ -43,7 +45,7 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
   const imported: { label: string; tree: Tree }[] = []; // every imported tree stays available for comparison
   let bootTree: { label: string; tree: Tree } | null = null;
   let original: Tree | null = null; // the tree before viewer edits, for "reset root"
-  let bootWorker: Worker | null = null;
+  let bootWorker: JobWorker<BootstrapResult> | null = null;
   let boot: { status: 'idle' | 'running' | 'done' | 'cancelled' | 'error'; progress?: number; message?: string; result?: BootstrapResult } = { status: 'idle' };
 
   // ---- source card ----
@@ -331,9 +333,9 @@ export function createTreesView(store: DataStore): AppView & { getState(): Trees
     if (!Number.isInteger(replicates) || replicates < 1 || replicates > MAX_REPLICATES) { boot = { status: 'error', message: `The number of replicates must be a whole number from 1 to ${MAX_REPLICATES}.` }; renderBoot(); return; }
     if (!Number.isInteger(seed) || seed < 0 || seed > 4294967295) { boot = { status: 'error', message: 'The seed must be a whole number from 0 to 4294967295.' }; renderBoot(); return; }
     bootWorker?.terminate();
-    bootWorker = new Worker(new URL('../workers/bootstrap.worker.ts', import.meta.url), { type: 'module' });
+    bootWorker = createBootstrapWorker();
     boot = { status: 'running', progress: 0 }; renderBoot();
-    bootWorker.onmessage = (ev: MessageEvent<WorkerReply<BootstrapResult>>) => {
+    bootWorker.onmessage = (ev: { data: WorkerReply<BootstrapResult> }) => {
       const m = ev.data;
       if (m.type === 'progress') { boot = { status: 'running', progress: m.fraction }; renderBoot(); return; }
       bootWorker?.terminate(); bootWorker = null;

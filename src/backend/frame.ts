@@ -4,7 +4,7 @@
 /** A decoded frame: the JSON header and the numeric tables by name (H, P, M, X, Y). */
 export interface DecodedFrame {
   header: unknown;
-  tables: Record<string, Int32Array | Uint8Array | Uint16Array>;
+  tables: Record<string, Int32Array | Uint8Array | Uint16Array | Float64Array | Uint32Array>;
 }
 
 const align8 = (n: number): number => Math.ceil(n / 8) * 8;
@@ -27,10 +27,10 @@ export function decodeFrame(buf: ArrayBuffer): DecodedFrame {
     const kind = dv.getUint8(e);
     const name = String.fromCharCode(dv.getUint8(e + 1));
     const n = dv.getUint32(e + 8, true) + dv.getUint32(e + 12, true) * 2 ** 32;
-    const size = kind === 0 ? 4 : kind === 1 ? 1 : kind === 2 ? 2 : 0;
+    const size = kind === 0 || kind === 4 ? 4 : kind === 1 ? 1 : kind === 2 ? 2 : kind === 3 ? 8 : 0;
     if (size === 0) throw new Error(`Unknown table kind ${kind}.`);
     if (pos + n * size > buf.byteLength) throw new Error(`Table ${name} runs past the end of the frame.`);
-    tables[name] = kind === 0 ? new Int32Array(buf, pos, n) : kind === 1 ? new Uint8Array(buf, pos, n) : new Uint16Array(buf, pos, n);
+    tables[name] = kind === 0 ? new Int32Array(buf, pos, n) : kind === 1 ? new Uint8Array(buf, pos, n) : kind === 2 ? new Uint16Array(buf, pos, n) : kind === 3 ? new Float64Array(buf, pos, n) : new Uint32Array(buf, pos, n);
     pos = align8(pos + n * size);
   }
   if (pos !== buf.byteLength) throw new Error('Result frame has unexpected trailing bytes.');
