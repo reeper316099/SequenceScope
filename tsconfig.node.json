@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["ES2022"], "types": ["node"] },
-  "include": ["electron/**/*.ts", "src/shared/**/*.ts", "electron.vite.config.ts", "vite.tauri.config.ts", "vitest.config.ts", "playwright.config.ts", "playwright.tauri.config.ts"]
+  "include": ["electron/**/*.ts", "src/shared/**/*.ts", "electron.vite.config.ts", "vite.tauri.config.ts", "vitest.config.ts", "vitest.parity.config.ts", "playwright.config.ts", "playwright.tauri.config.ts"]
 }

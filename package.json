@@ -34,6 +34,7 @@
     "renderer:dev": "vite --config vite.tauri.config.ts",
     "renderer:build": "vite build --config vite.tauri.config.ts",
     "test:tauri-ui": "npm run renderer:build && playwright test -c playwright.tauri.config.ts",
+    "parity:generate": "vitest run --config vitest.parity.config.ts",
     "tauri": "tauri"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 # Cargo workspace = several Rust packages (crates) built together with one shared Cargo.lock and target/ folder.
-# Checkpoint 1 only has the Tauri shell; the algorithm crate (crates/sequencescope-core) is added in Checkpoint 2.
+# crates/sequencescope-core = all algorithms, no UI code (added in Checkpoint 2); src-tauri = the thin desktop shell.
 [workspace]
-members = ["src-tauri"]
+members = ["crates/sequencescope-core", "src-tauri"]
 resolver = "3"
