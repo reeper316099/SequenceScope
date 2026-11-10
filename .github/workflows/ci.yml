@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, rust-port]
   pull_request:
 
 permissions:
@@ -13,23 +13,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  checks:
+    name: Checks and tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux packages for the Tauri web view (WebKitGTK) and a virtual display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xvfb
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - name: Unit and property tests
+
+      - name: Versions agree (package.json, Cargo.toml, tauri.conf.json)
+        run: |
+          P="$(node -p "require('./package.json').version")"
+          T="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          C="$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+          echo "package.json $P, tauri.conf.json $T, src-tauri/Cargo.toml $C"
+          [ "$P" = "$T" ] && [ "$P" = "$C" ]
+
+      - name: TypeScript lint and typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+      - name: Rust format
+        run: cargo fmt --all -- --check
+      - name: Rust lints (warnings are errors)
+        run: |
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo clippy -p sequencescope --features test-bridge --all-targets -- -D warnings
+      - name: Rust tests (core crate, parity fixtures, shell)
+        run: cargo test --workspace
+      - name: UI unit tests against the Rust core
         run: npm test
-      - name: Install xvfb (virtual display for Electron)
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Electron end-to-end tests under xvfb
-        run: xvfb-run -a npm run test:e2e
+      - name: Browser tests against the Rust core (headless Chrome, test bridge)
+        run: npm run test:bridge
         env:
           CI: 'true'
+
+      - name: Build the app and run its self-check in a real window
+        run: |
+          npx tauri build --debug --no-bundle
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            SEQUENCESCOPE_SMOKE=1 xvfb-run -a ./target/debug/sequencescope
+          else
+            SEQUENCESCOPE_SMOKE=1 ./target/debug/sequencescope
+          fi

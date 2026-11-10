@@ -8,7 +8,7 @@ Python scripts that make test fixtures and fetch example data. The app itself ne
 | `align_examples.py` | `examples/<set>/aligned.fasta` via MAFFT 7.526 (BSD-3, `brew install mafft`; derived data) |
 | `gen_distance_refs.py` | `tests/fixtures/reference/distances.json` (Biopython identity distances for the MAFFT-aligned sets) |
 | `gen_upgma_scipy_refs.py` | `tests/fixtures/reference/upgma_scipy.json` (SciPy average-linkage = true UPGMA; uses the SYSTEM SciPy, not `.pylibs`) |
-| `gen-matrices.mjs` | `src/bio/matrices.data.ts` from `data/matrices/*` (node, no Python) |
+| `gen-matrices.mjs` | **Obsolete** since Checkpoint 6: it wrote `src/bio/matrices.data.ts`, which no longer exists (the Rust core embeds `data/matrices/*` directly). Safe to delete. |
 | `crosscheck_fresh.py` | FRESH cross-check: random cases driven through the real app UI; compares exports with Biopython/SciPy (see its docstring) |
 | `gen_alignment_refs.py` | `tests/fixtures/reference/pairwise.json` (Biopython PairwiseAligner scores/alignments) |
 | `bench/measure.py` | Runs the in-window benchmark (`SEQUENCESCOPE_SMOKE_MODE=bench`) for one backend and measures peak memory from outside (stdlib only); see `docs/rust-migration/CHECKPOINT-3-BENCHMARKS.md` |

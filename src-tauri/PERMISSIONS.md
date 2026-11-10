@@ -40,7 +40,7 @@ font-src 'self'; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'
 form-action 'none'; frame-ancestors 'none'
 ```
 
-Same as the Electron CSP (no inline scripts or styles, no network sources) plus `ipc:` / `http://ipc.localhost`,
+No inline scripts or styles, no network sources, and `worker-src 'none'` (the page runs no Web Workers; the calculations are in Rust), plus `ipc:` / `http://ipc.localhost`,
 which Tauri uses to deliver command calls. `devCsp` is only used by `tauri dev` and additionally allows inline styles
 and the local Vite websocket for hot reload.
 
@@ -50,11 +50,9 @@ The three compute commands take only plain data (sequences, scoring numbers) and
 shell. They are limited in size (5001² DP cells, 5000 shuffles), run on a background thread, and every job can be
 cancelled. Progress arrives on a Tauri `Channel`; an alignment result comes back as one raw binary buffer.
 
-## Choosing the backend (not a permission, but a setting)
+## The backend
 
-`SEQUENCESCOPE_BACKEND=rust` or `ts` (environment variable read by the app and passed to the page), or
-`localStorage.setItem('sequencescope.backend', 'rust')` in the web inspector. The default is `ts` until the cutover.
-Under Electron the switch does nothing: the TypeScript workers are the only backend there.
+The Rust core is the only backend. (Until Checkpoint 6 a `SEQUENCESCOPE_BACKEND` switch could select the TypeScript implementation; it was removed together with the TypeScript algorithms.)
 
 ## Other protections
 
