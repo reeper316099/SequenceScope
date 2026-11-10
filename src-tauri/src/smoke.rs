@@ -97,3 +97,35 @@ pub fn smoke_report(app: AppHandle, report: Value) -> Result<(), String> {
     app.exit(if passed { 0 } else { 1 });
     Ok(())
 }
+
+/// True when a menu item (at any depth) has this id.
+fn menu_has(items: &[tauri::menu::MenuItemKind<tauri::Wry>], id: &str) -> bool {
+    items.iter().any(|kind| match kind {
+        tauri::menu::MenuItemKind::Submenu(sub) => sub.items().is_ok_and(|inner| menu_has(&inner, id)),
+        other => other.id().as_ref() == id,
+    })
+}
+
+/// Smoke tests only: optionally "clicks" a menu item (as if the user chose it), then lists the commands the menu is MISSING
+/// (empty = every command is reachable from the menu). Refuses outside smoke mode.
+#[tauri::command]
+pub fn smoke_menu(app: AppHandle, click: Option<String>) -> Result<Vec<String>, String> {
+    if !enabled() {
+        return Err("smoke mode is off".to_string());
+    }
+    if let Some(id) = click {
+        crate::menu::on_event(
+            &app,
+            &tauri::menu::MenuEvent {
+                id: tauri::menu::MenuId::new(id),
+            },
+        );
+    }
+    let menu = app.menu().ok_or("the app has no menu")?;
+    let items = menu.items().map_err(|e| e.to_string())?;
+    Ok(crate::menu::all_actions()
+        .into_iter()
+        .filter(|a| !menu_has(&items, a))
+        .map(str::to_string)
+        .collect())
+}

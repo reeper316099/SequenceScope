@@ -17,6 +17,7 @@ fn main() {
             "cancel_job",
             "smoke_active_jobs",
             "smoke_report",
+            "smoke_menu",
         ])),
     )
     .expect("tauri build script failed"); // build scripts have no caller to return an error to; failing the build is the intent

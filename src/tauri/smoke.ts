@@ -106,6 +106,21 @@ async function basicChecks(): Promise<void> {
     const okOp = await invoke<{ limits: { maxTreeTaxa: number } }>('bio_op', { request: { op: 'referenceData' } }).then((r) => r.limits.maxTreeTaxa, () => -1);
     add('bio_op answers a valid operation (reference data)', okOp === 100, String(okOp));
     add('cancel_job on an unknown job id is harmless', await invoke('cancel_job', { jobId: 424242 }).then(() => true, () => false));
+    // The application menu: every command the page accepts is in it, and a click reaches the page (fixed command list; side-effect-free ones only).
+    const missing = await invoke<string[]>('smoke_menu', { click: null }).catch((e: unknown) => [String(e)]);
+    add('application menu offers every page command', missing.length === 0, missing.join(','));
+    const heard: string[] = [];
+    const listen = (e: Event): void => { heard.push(String((e as CustomEvent<unknown>).detail)); };
+    window.addEventListener('menu-action', listen);
+    const themeBefore = document.documentElement.dataset['theme'];
+    await invoke('smoke_menu', { click: 'toggle-dark' });
+    await invoke('smoke_menu', { click: 'view-3' });
+    await invoke('smoke_menu', { click: 'not-a-command' });
+    await waitFor(() => heard.length >= 2, 3000);
+    window.removeEventListener('menu-action', listen);
+    add('menu clicks reach the page (and only known commands)', JSON.stringify(heard) === JSON.stringify(['toggle-dark', 'view-3']), heard.join(','));
+    add('menu "Toggle Dark Mode" changes the theme', document.documentElement.dataset['theme'] !== themeBefore, String(document.documentElement.dataset['theme']));
+    add('menu "View > Trees" shows the Trees view', document.querySelector('.view-trees:not([hidden])') !== null);
     add('no CSP violations', violations.length === 0, violations.join('; '));
   } catch (e) {
     add('smoke check itself did not crash', false, e instanceof Error ? e.message : String(e));

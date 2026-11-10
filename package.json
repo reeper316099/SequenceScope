@@ -33,6 +33,8 @@
     "pack": "npm run build && electron-builder --dir",
     "renderer:dev": "vite --config vite.tauri.config.ts",
     "renderer:build": "vite build --config vite.tauri.config.ts",
+    "bridge:build": "cargo build --release -p sequencescope --features test-bridge --bin test-bridge",
+    "test:bridge": "npm run renderer:build && npm run bridge:build && playwright test -c playwright.bridge.config.ts",
     "test:tauri-ui": "npm run renderer:build && playwright test -c playwright.tauri.config.ts",
     "parity:generate": "vitest run --config vitest.parity.config.ts",
     "tauri": "tauri"

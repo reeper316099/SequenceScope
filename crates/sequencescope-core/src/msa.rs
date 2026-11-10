@@ -548,28 +548,61 @@ pub fn brute_force_optimum_sp(seqs: &[String], scoring: &CompiledScoring) -> Res
     }
     let chars: Vec<Vec<char>> = seqs.iter().map(|s| s.chars().collect()).collect();
     let mut best: Option<i64> = None;
-    let mut best_rows: Vec<String> = seqs.to_vec();
+    let mut best_rows: Vec<Vec<char>> = chars.clone();
     let mut pos = vec![0usize; seqs.len()];
-    let mut rows = vec![String::new(); seqs.len()];
+    let mut rows: Vec<Vec<char>> = vec![Vec::new(); seqs.len()];
     enumerate(&chars, scoring, &mut pos, &mut rows, &mut best, &mut best_rows)?;
-    Ok((best.unwrap_or(i64::MIN), best_rows))
+    Ok((
+        best.unwrap_or(i64::MIN),
+        best_rows.iter().map(|r| r.iter().collect()).collect(),
+    ))
 }
 
-/// Tries every non-empty subset of sequences as the next column; scores each complete alignment.
+/// Same value as `sum_of_pairs_score` for rows already split into letters, but without building strings (the exhaustive
+/// search scores millions of alignments). The pair scorer is the one in verify.rs, written out over the two rows in place.
+fn sum_of_pairs_chars(rows: &[Vec<char>], scoring: &CompiledScoring) -> Result<i64, BioError> {
+    let mut total = 0i64;
+    for i in 0..rows.len() {
+        for j in (i + 1)..rows.len() {
+            let mut pair = 0i32;
+            let (mut in_gap_a, mut in_gap_b) = (false, false); // inside a run of gaps in row i / row j
+            for (&x, &y) in rows[i].iter().zip(&rows[j]) {
+                if x == '-' && y == '-' {
+                    continue; // a column of two gaps carries no information about this pair
+                }
+                if x == '-' {
+                    pair -= if in_gap_a { scoring.gap_extend } else { scoring.gap_open };
+                    (in_gap_a, in_gap_b) = (true, false);
+                } else if y == '-' {
+                    pair -= if in_gap_b { scoring.gap_extend } else { scoring.gap_open };
+                    (in_gap_b, in_gap_a) = (true, false);
+                } else {
+                    pair += scoring.char_score(x, y).map_err(|e| unequal_rows(e.message))?;
+                    (in_gap_a, in_gap_b) = (false, false);
+                }
+            }
+            total += i64::from(pair);
+        }
+    }
+    Ok(total)
+}
+
+/// Tries every non-empty subset of sequences as the next column (building the rows in place and undoing each step);
+/// scores each complete alignment and keeps the first one with the highest score.
 fn enumerate(
     seqs: &[Vec<char>],
     scoring: &CompiledScoring,
     pos: &mut [usize],
-    rows: &mut [String],
+    rows: &mut [Vec<char>],
     best: &mut Option<i64>,
-    best_rows: &mut Vec<String>,
+    best_rows: &mut Vec<Vec<char>>,
 ) -> Result<(), BioError> {
     let n = seqs.len();
     if pos.iter().zip(seqs).all(|(p, s)| *p == s.len()) {
-        let score = sum_of_pairs_score(rows, scoring)?;
+        let score = sum_of_pairs_chars(rows, scoring)?;
         if best.is_none_or(|b| score > b) {
             *best = Some(score);
-            *best_rows = rows.to_owned();
+            *best_rows = rows.to_vec();
         }
         return Ok(());
     }
@@ -577,17 +610,22 @@ fn enumerate(
         if !(0..n).all(|k| mask & (1 << k) == 0 || pos[k] < seqs[k].len()) {
             continue;
         }
-        let mut next_rows = rows.to_owned();
-        let mut next_pos = pos.to_owned();
         for k in 0..n {
             if mask & (1 << k) != 0 {
-                next_rows[k].push(seqs[k][pos[k]]);
-                next_pos[k] += 1;
+                rows[k].push(seqs[k][pos[k]]);
+                pos[k] += 1;
             } else {
-                next_rows[k].push('-');
+                rows[k].push('-');
             }
         }
-        enumerate(seqs, scoring, &mut next_pos, &mut next_rows, best, best_rows)?;
+        let result = enumerate(seqs, scoring, pos, rows, best, best_rows);
+        for k in 0..n {
+            rows[k].pop();
+            if mask & (1 << k) != 0 {
+                pos[k] -= 1;
+            }
+        }
+        result?;
     }
     Ok(())
 }

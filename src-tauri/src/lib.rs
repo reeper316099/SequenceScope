@@ -8,12 +8,26 @@ mod dto;
 mod fileio;
 mod frame;
 mod jobs;
+#[cfg(test)]
+mod lockdown_tests;
+mod menu;
 mod ops;
 mod ops_msa;
 mod ops_tree;
 mod results;
 mod smoke;
 mod validate;
+
+/// Dev-only surface for the localhost test bridge (feature `test-bridge`): the plain functions behind the commands, no window needed.
+#[cfg(feature = "test-bridge")]
+pub mod bridge_api {
+    pub use crate::compute::{run_align, run_bootstrap, run_distances, run_msa, run_shuffle};
+    pub use crate::dto::{
+        AlignRequestDto, BootstrapRequestDto, DistancesRequestDto, MsaRequestDto, ShuffleRequestDto, parse_request,
+    };
+    pub use crate::jobs::{JobError, Jobs};
+    pub use crate::ops::{OpRequest, run_op};
+}
 
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 
@@ -42,6 +56,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .menu(menu::build)
+        .on_menu_event(|app, event| menu::on_event(app, &event))
         .manage(jobs::Jobs::default())
         .invoke_handler(tauri::generate_handler![
             commands::open_file,
@@ -57,7 +73,8 @@ pub fn run() {
             compute::bio_op,
             compute::cancel_job,
             compute::smoke_active_jobs,
-            smoke::smoke_report
+            smoke::smoke_report,
+            smoke::smoke_menu
         ])
         .setup(move |app| {
             if smoke_mode {

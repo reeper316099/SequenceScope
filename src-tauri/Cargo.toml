@@ -8,6 +8,15 @@ repository = "https://github.com/reeper316099/SequenceScope"
 edition = "2024"
 rust-version = "1.90"
 
+[features]
+# Dev-only: builds the localhost test bridge (src/bin/test_bridge.rs). Off by default, so the shipped app never contains it.
+test-bridge = ["dep:tiny_http"]
+
+[[bin]]
+name = "test-bridge"
+path = "src/bin/test_bridge.rs"
+required-features = ["test-bridge"]
+
 [lib]
 name = "sequencescope_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -26,3 +35,4 @@ serde_json = { version = "=1.0.154", features = ["float_roundtrip"] } # exact de
 sequencescope-core = { path = "../crates/sequencescope-core" } # all algorithms live here, not in the shell
 url = "=2.5.8"
 base64 = "=0.23.1"
+tiny_http = { version = "=0.12.0", optional = true } # test bridge only
