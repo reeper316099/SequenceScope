@@ -6,6 +6,7 @@
 //   2. localStorage "sequencescope.backend"  (same values; set it from the developer console to flip the app)
 //   3. "ts"
 import type { BootstrapResult } from '../bio/bootstrap';
+import type { MsaResult } from '../bio/msa';
 import type { AlignResult, DistanceMatrix, ShuffleSummary, WorkerReply } from '../shared/types';
 import { RustWorker } from './rust';
 import type { BackendName, JobWorker } from './types';
@@ -75,4 +76,10 @@ export function createDistancesWorker(backend: BackendName = selectedBackend()):
 export function createBootstrapWorker(backend: BackendName = selectedBackend()): JobWorker<BootstrapResult> {
   if (backend === 'rust') return new RustWorker<BootstrapResult>('bootstrap');
   return new TsWorker<BootstrapResult>(new Worker(new URL('../workers/bootstrap.worker.ts', import.meta.url), { type: 'module' }));
+}
+
+/** A worker that runs ONE progressive multiple alignment (request: MsaRequest, result: MsaResult). */
+export function createMsaWorker(backend: BackendName = selectedBackend()): JobWorker<MsaResult> {
+  if (backend === 'rust') return new RustWorker<MsaResult>('msa');
+  return new TsWorker<MsaResult>(new Worker(new URL('../workers/msa.worker.ts', import.meta.url), { type: 'module' }));
 }

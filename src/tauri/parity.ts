@@ -347,5 +347,6 @@ export async function runParity(): Promise<Check[]> {
   await cancellation(checks);
   await uiParity(checks);
   await (await import('./parityTrees')).runTreesParity(checks);
+  await (await import('./parityMsa')).runMsaParity(checks);
   return checks;
 }

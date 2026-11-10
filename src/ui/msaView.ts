@@ -4,9 +4,11 @@ import { conservationCsv } from '../bio/conservation';
 import { writeFasta } from '../bio/fasta';
 import type { MsaResult } from '../bio/msa';
 import { MAX_MSA_SEQS } from '../bio/msa';
+import { createMsaWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import { writeNewick } from '../bio/newick';
 import { msaToClustal, msaToFasta } from '../io/export';
-import type { Alphabet, AlphabetChoice, ScoringSpec, WorkerReply } from '../shared/types';
+import type { Alphabet, AlphabetChoice, ScoringSpec } from '../shared/types';
 import { MAX_OPEN_FILE_BYTES } from '../shared/types';
 import type { MsaRequest } from '../workers/protocol';
 import { callout, card, statTile, toast } from './cards';
@@ -36,7 +38,7 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
   let scoring: ScoringSpec = defaultPreset('protein').scoring;
   let result: MsaResult | null = null;
   let resultAlphabet: Alphabet = 'protein';
-  let worker: Worker | null = null;
+  let worker: JobWorker<MsaResult> | null = null;
   let lastKind: 'protein' | 'nucleotide' | null = null;
   let state: { kind: 'idle' | 'running' | 'error' | 'cancelled' | 'done'; progress?: number; message?: string } = { kind: 'idle' };
 
@@ -203,9 +205,9 @@ export function createMsaView(toTrees: (alignedFasta: string, method: 'upgma' | 
     worker?.terminate();
     const alphabet: Alphabet = a.alphabet;
     resultAlphabet = alphabet;
-    worker = new Worker(new URL('../workers/msa.worker.ts', import.meta.url), { type: 'module' });
+    worker = createMsaWorker();
     state = { kind: 'running', progress: 0 }; showStatus();
-    worker.onmessage = (ev: MessageEvent<WorkerReply<MsaResult>>) => {
+    worker.onmessage = (ev) => {
       const m = ev.data;
       if (m.type === 'progress') { state = { kind: 'running', progress: m.fraction }; showStatus(); return; }
       worker?.terminate(); worker = null;

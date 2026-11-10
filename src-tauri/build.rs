@@ -12,6 +12,7 @@ fn main() {
             "shuffle_test",
             "distance_matrix",
             "bootstrap_job",
+            "msa_job",
             "cancel_job",
             "smoke_active_jobs",
             "smoke_report",

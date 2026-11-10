@@ -50,6 +50,7 @@ pub fn run() {
             compute::shuffle_test,
             compute::distance_matrix,
             compute::bootstrap_job,
+            compute::msa_job,
             compute::cancel_job,
             compute::smoke_active_jobs,
             smoke::smoke_report

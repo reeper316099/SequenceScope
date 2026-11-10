@@ -2,7 +2,7 @@
 // (src/bio/rng.ts), and the Rust benchmark (crates/sequencescope-core/examples/bench.rs) generates the SAME sequences
 // with its port of that PRNG, so TypeScript and Rust are timed on identical inputs.
 import { createRng } from '../bio/rng';
-import type { BootstrapRequest, DistancesRequest } from '../workers/protocol';
+import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
 import type { AlignMode, AlignRequest, Alphabet, GapModel, ScoringSpec, ShuffleRequest } from '../shared/types';
 
 export const DNA = 'ACGT';
@@ -21,6 +21,11 @@ export function alignmentRows(seed: number, n: number, len: number, letters: str
   const rng = createRng(seed);
   const base = Array.from({ length: len }, () => letters.charAt(rng.nextInt(letters.length)));
   return Array.from({ length: n }, () => base.map((c) => (rng.nextInt(100) < 15 ? letters.charAt(rng.nextInt(letters.length)) : c)).join(''));
+}
+
+/** Related unaligned sequences for the MSA benchmark: mutated copies of one base, each trimmed a little at both ends (same recipe in bench.rs). */
+function msaSeqs(seed: number, n: number, len: number, letters: string, alphabet: Alphabet): { id: string; description: string; alphabet: Alphabet; residues: string }[] {
+  return alignmentRows(seed, n, len, letters).map((r, i) => ({ id: `m${i}`, description: '', alphabet, residues: r.slice(i % 7, r.length - (i % 5)) }));
 }
 
 export const dnaScoring = (gaps: GapModel): ScoringSpec => ({ substitution: { kind: 'simple', match: 2, mismatch: -3 }, gaps });
@@ -43,5 +48,7 @@ export const SCENARIOS = {
   }),
   bootstrapSmall: (): BootstrapRequest => ({ type: 'bootstrap', input: { names: Array.from({ length: 10 }, (_, i) => `t${i}`), rows: alignmentRows(61, 10, 1144, DNA), alphabet: 'dna', model: 'p', gapPolicy: 'pairwise-deletion', method: 'nj', replicates: 100, seed: 2026 } }),
   bootstrapLarge: (): BootstrapRequest => ({ type: 'bootstrap', input: { names: Array.from({ length: 50 }, (_, i) => `t${i}`), rows: alignmentRows(62, 50, 3000, DNA), alphabet: 'dna', model: 'p', gapPolicy: 'pairwise-deletion', method: 'nj', replicates: 100, seed: 2026 } }),
+  msaSmall: (): MsaRequest => ({ type: 'msa', alphabet: 'protein', guide: 'upgma', scoring: blosum62({ kind: 'affine', open: 11, extend: 1 }), seqs: msaSeqs(101, 12, 300, PROTEIN, 'protein') }),
+  msaLarge: (): MsaRequest => ({ type: 'msa', alphabet: 'dna', guide: 'nj', scoring: dnaScoring({ kind: 'affine', open: 5, extend: 1 }), seqs: msaSeqs(102, 40, 800, DNA, 'dna') }),
   shuffle: (): ShuffleRequest => ({ type: 'shuffle', a: randomSeq(41, 300, DNA), b: randomSeq(42, 300, DNA), alphabet: 'dna', mode: 'local', scoring: dnaScoring({ kind: 'affine', open: 5, extend: 1 }), shuffles: 1000, seed: 7 }),
 } as const;

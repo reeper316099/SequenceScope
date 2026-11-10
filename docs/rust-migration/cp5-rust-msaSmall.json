@@ -1,0 +1,1 @@
+{"backend": "rust", "only": "msaSmall", "exit": 0, "rust_process_peak_mb": 104.5, "webcontent_peak_mb": 369.0, "bench": {"backend": "rust", "scenarios": [{"backend": "rust", "checksum": "77911:12x300:772c1214:11", "medianMs": 51, "minMs": 50, "name": "MSA: 12 protein x 300, BLOSUM62 affine, UPGMA guide", "reps": 3, "runsMs": [51, 50, 54]}]}}

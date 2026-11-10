@@ -97,6 +97,73 @@ pub fn js_ln(mut x: f64) -> f64 {
     }
 }
 
+/// `Math.log2(x)` exactly as V8 computes it (FreeBSD's `e_log2.c` with the `k_log1p` kernel). Unlike `js_ln`, no fused
+/// multiply-add is needed: the unfused port matches V8 on Apple Silicon on all 1,580,219 inputs tried (fractions c/n for
+/// n up to 400, 1.5 million seeded doubles over 2^-100..2^100 and (0, 9), and the special values), so it also matches
+/// V8 on x86-64. Rust's own `f64::log2` (the C library) differs by 1 ulp on 0.68% of those inputs.
+// The constants below are copied digit for digit from fdlibm so they can be audited against the original source.
+#[allow(clippy::excessive_precision)]
+pub fn js_log2(mut x: f64) -> f64 {
+    const TWO54: f64 = 1.801_439_850_948_198_4e16;
+    const IVLN2_HI: f64 = 1.442_695_040_721_446_275_71e+00;
+    const IVLN2_LO: f64 = 1.675_171_316_488_651_183_53e-10;
+    const LG1: f64 = 6.666_666_666_666_735_130e-01;
+    const LG2: f64 = 3.999_999_999_940_941_908e-01;
+    const LG3: f64 = 2.857_142_874_366_239_149e-01;
+    const LG4: f64 = 2.222_219_843_214_978_396e-01;
+    const LG5: f64 = 1.818_357_216_161_805_012e-01;
+    const LG6: f64 = 1.531_383_769_920_937_332e-01;
+    const LG7: f64 = 1.479_819_860_511_658_591e-01;
+
+    let bits = x.to_bits();
+    let mut hx = (bits >> 32) as i32;
+    let lx = bits as u32;
+    let mut k: i32 = 0;
+    if hx < 0x0010_0000 {
+        if ((hx & 0x7fff_ffff) as u32 | lx) == 0 {
+            return f64::NEG_INFINITY; // log2(+-0) = -inf
+        }
+        if hx < 0 {
+            return f64::NAN; // log2(negative) = NaN
+        }
+        k -= 54;
+        x *= TWO54; // subnormal: scale up
+        hx = (x.to_bits() >> 32) as i32;
+    }
+    if hx >= 0x7ff0_0000 {
+        return x + x; // inf or NaN
+    }
+    if hx == 0x3ff0_0000 && lx == 0 {
+        return 0.0; // log2(1) = +0
+    }
+    k += (hx >> 20) - 1023;
+    hx &= 0x000f_ffff;
+    let i = (hx + 0x95f64) & 0x10_0000;
+    // SET_HIGH_WORD(x, hx | (i ^ 0x3ff00000)): normalise x into [sqrt(2)/2, sqrt(2)].
+    x = f64::from_bits((u64::from((hx | (i ^ 0x3ff0_0000)) as u32) << 32) | (x.to_bits() & 0xffff_ffff));
+    k += i >> 20;
+    let y = f64::from(k);
+    let f = x - 1.0;
+    let hfsq = 0.5 * f * f;
+    // k_log1p(f)
+    let s = f / (2.0 + f);
+    let z = s * s;
+    let w = z * z;
+    let t1 = w * (LG2 + w * (LG4 + w * LG6));
+    let t2 = z * (LG1 + w * (LG3 + w * (LG5 + w * LG7)));
+    let r = s * (hfsq + (t2 + t1));
+    // log2(x) = (f - 0.5*f*f + k_log1p(f)) / ln2 + k, in extra precision
+    let mut hi = f - hfsq;
+    hi = f64::from_bits(hi.to_bits() & 0xffff_ffff_0000_0000); // SET_LOW_WORD(hi, 0)
+    let lo = (f - hi) - hfsq + r;
+    let mut val_hi = hi * IVLN2_HI;
+    let mut val_lo = (lo + hi) * IVLN2_LO + lo * IVLN2_HI;
+    let sum = y + val_hi; // spadd(val_hi, val_lo, y)
+    val_lo += (y - sum) + val_hi;
+    val_hi = sum;
+    val_lo + val_hi
+}
+
 /// `String(x)` for a JavaScript number (ECMAScript Number::toString, radix 10).
 pub fn js_number_to_string(x: f64) -> String {
     if x.is_nan() {

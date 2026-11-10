@@ -5,15 +5,18 @@
 //! Contents so far: errors, alphabets, FASTA, substitution matrices, scoring, pairwise alignment (Needleman-Wunsch /
 //! Smith-Waterman, linear and affine gaps, cancellable), an independent alignment re-scorer for tests, the seeded PRNG,
 //! the shuffle significance test, and (Checkpoint 4) distances, UPGMA / neighbor-joining, tree utilities, Newick,
-//! Robinson-Foulds and the column bootstrap.
+//! Robinson-Foulds and the column bootstrap, and (Checkpoint 5) alignment conservation and the progressive
+//! multiple alignment.
 
 pub mod alphabet;
 pub mod bootstrap;
+pub mod conservation;
 pub mod distance;
 pub mod error;
 pub mod fasta;
 pub mod jsnum;
 pub mod matrices;
+pub mod msa;
 pub mod newick;
 pub mod nj;
 pub mod pairwise;

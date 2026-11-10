@@ -1,0 +1,2 @@
+MSA: 12 protein x 300, BLOSUM62 affine, UPGMA guide | runs ms [46.5, 45.5, 45.8] | min 45.5 | median 45.8 | checksum 77911:12x300:772c1214:11
+MSA: 40 DNA x 800, affine, NJ guide | runs ms [3509.0, 3474.0, 3419.8] | min 3419.8 | median 3474.0 | checksum 398466:40x917:844f27b3:39

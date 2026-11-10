@@ -3,8 +3,9 @@
 // arrive as one binary frame, and cancellation is a cancel_job command.
 import { Channel, invoke } from '@tauri-apps/api/core';
 import type { BootstrapResult } from '../bio/bootstrap';
+import type { MsaResult } from '../bio/msa';
 import type { AlignRequest, AlignResult, DistanceMatrix, DpSnapshot, PairwiseAlignment, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
-import type { BootstrapRequest, DistancesRequest } from '../workers/protocol';
+import type { BootstrapRequest, DistancesRequest, MsaRequest } from '../workers/protocol';
 import { decodeFrame } from './frame';
 import type { JobWorker } from './types';
 
@@ -88,6 +89,13 @@ export async function rustBootstrap(req: BootstrapRequest, onProgress?: (fractio
   return invoke<BootstrapResult>('bootstrap_job', { jobId, request: req, onProgress: channel });
 }
 
+/** Runs the progressive multiple alignment in Rust (all pairs aligned, guide tree, profile merges). */
+export async function rustMsa(req: MsaRequest, onProgress?: (fraction: number) => void, jobId: number = nextJobId++): Promise<MsaResult> {
+  const channel = new Channel<{ fraction: number }>();
+  channel.onmessage = (m) => onProgress?.(m.fraction);
+  return invoke<MsaResult>('msa_job', { jobId, request: req, onProgress: channel });
+}
+
 /** A JobWorker backed by Rust. `kind` selects which command a posted request goes to. */
 export class RustWorker<R> implements JobWorker<R> {
   onmessage: ((ev: { data: WorkerReply<R> }) => void) | null = null;
@@ -95,7 +103,7 @@ export class RustWorker<R> implements JobWorker<R> {
   private terminated = false;
   private jobId: number | null = null;
 
-  constructor(private readonly kind: 'align' | 'shuffle' | 'distances' | 'bootstrap') {}
+  constructor(private readonly kind: 'align' | 'shuffle' | 'distances' | 'bootstrap' | 'msa') {}
 
   /** Starts the job; replies are delivered through `onmessage` unless the job was terminated first. */
   postMessage(message: unknown): void {
@@ -112,6 +120,7 @@ export class RustWorker<R> implements JobWorker<R> {
       case 'shuffle': run = rustShuffle(message as ShuffleRequest, progress, jobId); break;
       case 'distances': run = rustDistances(message as DistancesRequest, progress, jobId); break;
       case 'bootstrap': run = rustBootstrap(message as BootstrapRequest, progress, jobId); break;
+      case 'msa': run = rustMsa(message as MsaRequest, progress, jobId); break;
     }
     run.then(
       (value) => send({ type: 'result', value: value as R }),

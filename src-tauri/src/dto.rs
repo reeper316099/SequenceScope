@@ -8,6 +8,7 @@ use sequencescope_core::bootstrap::{BootstrapInput, BootstrapResult, TreeMethod}
 use sequencescope_core::distance::{DistanceModel, GapPolicy};
 use sequencescope_core::error::{BioError, BioErrorCode};
 use sequencescope_core::fasta::Sequence;
+use sequencescope_core::msa::{GuideMethod, MsaResult};
 use sequencescope_core::pairwise::MAX_ENUMERATED_ALIGNMENTS;
 use sequencescope_core::rng::check_seed;
 use sequencescope_core::shuffle::{MAX_SHUFFLES, ShuffleSummary};
@@ -427,6 +428,74 @@ impl From<&BootstrapResult> for BootstrapResultDto {
             method: r.method.as_str(),
             model: r.model.as_str(),
             gap_policy: r.gap_policy.as_str(),
+        }
+    }
+}
+
+/// A progressive multiple-alignment job (`type: 'msa'` is ignored).
+#[derive(Debug, Deserialize)]
+pub struct MsaRequestDto {
+    pub seqs: Vec<SeqDto>,
+    pub alphabet: String,
+    pub scoring: ScoringDto,
+    pub guide: String,
+}
+
+/// Parses the guide-tree method sent by the page ("upgma" or "nj").
+pub fn parse_guide(s: &str) -> Result<GuideMethod, BioError> {
+    GuideMethod::parse(s).ok_or_else(|| {
+        BioError::new(
+            BioErrorCode::InvalidArgument,
+            format!("Unknown guide-tree method \"{s}\"."),
+        )
+    })
+}
+
+/// One profile merge, shaped like the TypeScript `MsaStep`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MsaStepDto {
+    pub ids: Vec<String>,
+    pub left_ids: Vec<String>,
+    pub right_ids: Vec<String>,
+    pub rows: Vec<String>,
+    pub score: f64,
+}
+
+/// The multiple alignment, shaped like the TypeScript `MsaResult`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MsaResultDto {
+    pub ids: Vec<String>,
+    pub rows: Vec<String>,
+    pub alphabet: &'static str,
+    pub guide_tree: TreeDto,
+    pub guide: &'static str,
+    pub steps: Vec<MsaStepDto>,
+    pub sum_of_pairs: i64,
+}
+
+impl From<&MsaResult> for MsaResultDto {
+    /// Copies the finished alignment into its JSON form.
+    fn from(r: &MsaResult) -> Self {
+        Self {
+            ids: r.ids.clone(),
+            rows: r.rows.clone(),
+            alphabet: r.alphabet.as_str(),
+            guide_tree: TreeDto::from(&r.guide_tree),
+            guide: r.guide.as_str(),
+            steps: r
+                .steps
+                .iter()
+                .map(|s| MsaStepDto {
+                    ids: s.ids.clone(),
+                    left_ids: s.left_ids.clone(),
+                    right_ids: s.right_ids.clone(),
+                    rows: s.rows.clone(),
+                    score: s.score,
+                })
+                .collect(),
+            sum_of_pairs: r.sum_of_pairs,
         }
     }
 }

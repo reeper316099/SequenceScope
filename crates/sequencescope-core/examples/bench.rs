@@ -7,6 +7,7 @@ use sequencescope_core::bootstrap::{BootstrapInput, BootstrapResult, TreeMethod,
 use sequencescope_core::distance::{DistanceMatrix, DistanceModel, GapPolicy, pairwise_distance_matrix};
 use sequencescope_core::error::BioError;
 use sequencescope_core::fasta::Sequence;
+use sequencescope_core::msa::{GuideMethod, progressive_align};
 use sequencescope_core::pairwise::{Tables, fill_matrix, traceback_all, traceback_first};
 use sequencescope_core::rng::Rng;
 use sequencescope_core::scoring::{CompiledScoring, compile_scoring};
@@ -317,6 +318,73 @@ fn main() -> Result<(), BioError> {
             3,
             multi,
             bootstrap_checksum,
+        )?;
+    }
+    for (name, n, len, seed, letters, alphabet, guide) in [
+        (
+            "MSA: 12 protein x 300, BLOSUM62 affine, UPGMA guide",
+            12usize,
+            300usize,
+            101u32,
+            PROTEIN,
+            Alphabet::Protein,
+            GuideMethod::Upgma,
+        ),
+        (
+            "MSA: 40 DNA x 800, affine, NJ guide",
+            40,
+            800,
+            102,
+            DNA,
+            Alphabet::Dna,
+            GuideMethod::Nj,
+        ),
+    ] {
+        let substitution = if alphabet == Alphabet::Protein {
+            SubstitutionSpec::Matrix {
+                name: "BLOSUM62".to_string(),
+            }
+        } else {
+            SubstitutionSpec::Simple {
+                match_score: 2,
+                mismatch_score: -3,
+            }
+        };
+        let (open, extend) = if alphabet == Alphabet::Protein { (11, 1) } else { (5, 1) };
+        let scoring = compile_scoring(
+            &ScoringSpec {
+                substitution,
+                gaps: GapModel::Affine { open, extend },
+            },
+            alphabet,
+        )?;
+        let seqs: Vec<Sequence> = alignment_rows(seed, n, len, letters)?
+            .into_iter()
+            .enumerate()
+            .map(|(i, r)| Sequence {
+                id: format!("m{i}"),
+                description: String::new(),
+                alphabet,
+                residues: r[i % 7..r.len() - (i % 5)].to_string(),
+            })
+            .collect();
+        bench_job(
+            name,
+            3,
+            || {
+                progressive_align(&seqs, &scoring, guide, &mut |_| {}, &mut || false)?
+                    .ok_or_else(|| BioError::new(sequencescope_core::error::BioErrorCode::InvalidArgument, "cancelled"))
+            },
+            |r| {
+                format!(
+                    "{}:{}x{}:{}:{}",
+                    r.sum_of_pairs,
+                    r.rows.len(),
+                    r.rows.first().map_or(0, |x| x.len()),
+                    fnv1a32(r.rows.join("\n").bytes()),
+                    r.steps.len()
+                )
+            },
         )?;
     }
     Ok(())

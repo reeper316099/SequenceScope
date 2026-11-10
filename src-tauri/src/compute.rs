@@ -5,13 +5,14 @@
 
 use crate::dto::{
     AlignHeaderDto, AlignRequestDto, AlignmentDto, BootstrapRequestDto, BootstrapResultDto, DistancesRequestDto,
-    DpMetaDto, MatrixHeaderDto, ProgressDto, ShuffleRequestDto, ShuffleSummaryDto, TimingsDto, parse_alphabet,
-    parse_mode, parse_model, parse_policy, parse_request,
+    DpMetaDto, MatrixHeaderDto, MsaRequestDto, MsaResultDto, ProgressDto, ShuffleRequestDto, ShuffleSummaryDto,
+    TimingsDto, parse_alphabet, parse_guide, parse_mode, parse_model, parse_policy, parse_request,
 };
 use crate::frame::{Table, encode_frame};
 use crate::jobs::{JobError, Jobs};
 use sequencescope_core::bootstrap::bootstrap_threads;
 use sequencescope_core::distance::{distance_matrix_from_aligned, pairwise_distance_matrix};
+use sequencescope_core::msa::progressive_align;
 use sequencescope_core::pairwise::{Dp, Tables, fill_matrix_cancellable, traceback_all, traceback_first};
 use sequencescope_core::scoring::compile_scoring;
 use sequencescope_core::shuffle::{ShuffleOptions, ShuffleOutcome, run_shuffle_test};
@@ -183,6 +184,21 @@ pub fn run_bootstrap(
     Ok(BootstrapResultDto::from(&result))
 }
 
+/// Runs the progressive multiple alignment (all pairs aligned, guide tree, profile merges) and returns it as JSON.
+pub fn run_msa(
+    req: &MsaRequestDto,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(f64),
+) -> Result<MsaResultDto, JobError> {
+    let alphabet = parse_alphabet(&req.alphabet)?;
+    let scoring = compile_scoring(&req.scoring.to_core()?, alphabet)?;
+    let guide = parse_guide(&req.guide)?;
+    let seqs: Vec<_> = req.seqs.iter().map(|s| s.to_core(alphabet)).collect();
+    let result = progressive_align(&seqs, &scoring, guide, progress, &mut || cancel.load(Ordering::Relaxed))?
+        .ok_or_else(JobError::cancelled)?;
+    Ok(MsaResultDto::from(&result))
+}
+
 /// Sends progress to the page at most once per percent (and always the final 100%), like the TypeScript workers.
 fn throttled(channel: Channel<ProgressDto>) -> impl FnMut(f64) {
     let mut last = 0.0;
@@ -259,6 +275,21 @@ pub async fn bootstrap_job(
     let req: BootstrapRequestDto = parse_request(request)?;
     let cancel = jobs.register(job_id);
     let result = on_worker_thread(move || run_bootstrap(&req, &cancel, &mut throttled(on_progress))).await;
+    jobs.finish(job_id);
+    result
+}
+
+/// Runs the progressive multiple alignment and returns its result as JSON.
+#[tauri::command]
+pub async fn msa_job(
+    jobs: State<'_, Jobs>,
+    job_id: u64,
+    request: Value,
+    on_progress: Channel<ProgressDto>,
+) -> Result<MsaResultDto, JobError> {
+    let req: MsaRequestDto = parse_request(request)?;
+    let cancel = jobs.register(job_id);
+    let result = on_worker_thread(move || run_msa(&req, &cancel, &mut throttled(on_progress))).await;
     jobs.finish(job_id);
     result
 }
@@ -541,5 +572,62 @@ mod tests {
         let e = run_shuffle(&shuffle_req(0, 1), &AtomicBool::new(false), &mut |_| {}).expect_err("zero shuffles"); // test code
         assert_eq!(e.code, "invalid-argument");
         assert!(e.message.contains("1 to 5000"));
+    }
+
+    fn msa_req(guide: &str, seqs: Value) -> MsaRequestDto {
+        parse_request(
+            json!({ "type": "msa", "seqs": seqs, "alphabet": "dna", "scoring": linear_dna(), "guide": guide }),
+        )
+        .expect("valid") // test code
+    }
+    fn four_seqs() -> Value {
+        json!([{ "id": "a", "residues": "ACGTTGCA" }, { "id": "b", "residues": "ACGTGCA" }, { "id": "c", "residues": "ACTTGCAA" }, { "id": "d", "residues": "CGTTGC" }])
+    }
+
+    #[test]
+    fn msa_job_is_deterministic_and_reports_progress() {
+        let mut seen = Vec::new();
+        let a = run_msa(&msa_req("upgma", four_seqs()), &AtomicBool::new(false), &mut |f| {
+            seen.push(f)
+        })
+        .expect("runs"); // test code
+        let b = run_msa(&msa_req("upgma", four_seqs()), &AtomicBool::new(false), &mut |_| {}).expect("runs"); // test code
+        assert_eq!(
+            serde_json::to_value(&a).expect("json"),
+            serde_json::to_value(&b).expect("json")
+        ); // test code
+        assert_eq!((a.ids.len(), a.rows.len(), a.steps.len()), (4, 4, 3));
+        assert!(seen.windows(2).all(|w| w[0] <= w[1]));
+        assert_eq!(seen.last(), Some(&1.0));
+        let json = serde_json::to_value(&a).expect("json"); // test code
+        for key in ["ids", "rows", "alphabet", "guideTree", "guide", "steps", "sumOfPairs"] {
+            assert!(json.get(key).is_some(), "missing {key}");
+        }
+        assert!(json["steps"][0].get("leftIds").is_some() && json["steps"][0].get("rightIds").is_some());
+    }
+
+    #[test]
+    fn a_cancelled_msa_job_reports_cancelled() {
+        let e = run_msa(&msa_req("nj", four_seqs()), &AtomicBool::new(true), &mut |_| {}).expect_err("cancelled"); // test code
+        assert_eq!(e.code, "cancelled");
+    }
+
+    #[test]
+    fn msa_validation_errors_match_the_typescript_wording() {
+        let dup = json!([{ "id": "a", "residues": "ACGT" }, { "id": "a", "residues": "ACGA" }]);
+        let e = run_msa(&msa_req("upgma", dup), &AtomicBool::new(false), &mut |_| {}).expect_err("duplicate names"); // test code
+        assert_eq!(
+            (e.code.as_str(), e.message.as_str()),
+            (
+                "duplicate-names",
+                "Sequence names must be unique so the guide tree can name them."
+            )
+        );
+        let e = run_msa(&msa_req("upgma", json!([])), &AtomicBool::new(false), &mut |_| {}).expect_err("none"); // test code
+        assert_eq!(e.code, "too-few-sequences");
+        let e =
+            run_msa(&msa_req("star", four_seqs()), &AtomicBool::new(false), &mut |_| {}).expect_err("unknown guide"); // test code
+        assert_eq!(e.code, "invalid-argument");
+        assert!(parse_request::<MsaRequestDto>(json!({ "seqs": "no" })).is_err());
     }
 }
