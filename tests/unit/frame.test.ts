@@ -1,7 +1,6 @@
-// The backend switch and the binary frame decoder (the Rust side of the frame is tested in src-tauri/src/frame.rs; the
-// real Rust-to-page round trip is checked in the Tauri window by `SEQUENCESCOPE_SMOKE_MODE=parity`).
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { selectedBackend } from '../../src/backend';
+// The binary frame decoder (the Rust side of the frame is tested in src-tauri/src/frame.rs; the real Rust-to-page round trip is
+// checked by the bridge tests and by the Tauri window smoke test).
+import { describe, expect, it } from 'vitest';
 import { decodeFrame } from '../../src/backend/frame';
 
 /** Builds a frame exactly as src-tauri/src/frame.rs documents it (an independent encoder, so the decoder is really tested). */
@@ -55,37 +54,5 @@ describe('decodeFrame', () => {
     const trailing = new Uint8Array(buildFrame('{}', []).byteLength + 8);
     trailing.set(new Uint8Array(buildFrame('{}', [])));
     expect(() => decodeFrame(trailing.buffer)).toThrow(/trailing/);
-  });
-});
-
-describe('selectedBackend', () => {
-  afterEach(() => vi.unstubAllGlobals());
-  /** Pretends to be a page: `tauri` adds the Tauri marker, `override` is the injected global, `stored` the localStorage value. */
-  function page(opts: { tauri: boolean; override?: unknown; stored?: string | null; storageThrows?: boolean }): void {
-    const w: Record<string, unknown> = {};
-    if (opts.tauri) w['__TAURI_INTERNALS__'] = {};
-    if (opts.override !== undefined) w['__SEQUENCESCOPE_BACKEND__'] = opts.override;
-    vi.stubGlobal('window', w);
-    vi.stubGlobal('localStorage', { getItem: () => { if (opts.storageThrows === true) throw new Error('blocked'); return opts.stored ?? null; } });
-  }
-  it('is always "ts" outside Tauri (Electron and browsers have no Rust backend)', () => {
-    page({ tauri: false, override: 'rust', stored: 'rust' });
-    expect(selectedBackend()).toBe('ts');
-  });
-  it('defaults to "ts" inside Tauri', () => {
-    page({ tauri: true });
-    expect(selectedBackend()).toBe('ts');
-  });
-  it('the injected global wins over localStorage; localStorage works alone', () => {
-    page({ tauri: true, override: 'rust', stored: 'ts' });
-    expect(selectedBackend()).toBe('rust');
-    page({ tauri: true, stored: 'rust' });
-    expect(selectedBackend()).toBe('rust');
-  });
-  it('ignores unknown values and a broken localStorage', () => {
-    page({ tauri: true, override: 'python', stored: 'java' });
-    expect(selectedBackend()).toBe('ts');
-    page({ tauri: true, storageThrows: true });
-    expect(selectedBackend()).toBe('ts');
   });
 });

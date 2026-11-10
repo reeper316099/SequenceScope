@@ -1,6 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"] },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/workers/**"]
+  "include": ["src/**/*.ts"]
 }

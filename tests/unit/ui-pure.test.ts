@@ -6,8 +6,7 @@ import { histogram } from '../../src/ui/histogram';
 import { cellAt, fitView, mix, pathCells, visibleRange, zoomAt, parseHex } from '../../src/ui/matrixGeometry';
 import { analyzeSequenceText, checkPair, defaultPreset, describeScoring, gapCostText, PRESETS } from '../../src/ui/model';
 import { residueClass } from '../../src/ui/residueClass';
-import { compileScoring } from '../../src/bio/scoring';
-import { align } from '../../src/bio/pairwise';
+import { alignPrecheck } from '../../src/backend/api';
 
 describe('History', () => {
   it('undo/redo walk through states; a new push clears redo; identical pushes are ignored', () => {
@@ -72,8 +71,7 @@ describe('matrix geometry', () => {
     expect(visibleRange({ cs: 10, ox: 0, oy: 0 }, 55, 35, 100, 100)).toEqual({ i0: 0, i1: 3, j0: 0, j1: 5 });
   });
   it('pathCells walks an alignment from its start to its end cell', () => {
-    const sc = compileScoring({ substitution: { kind: 'simple', match: 1, mismatch: -1 }, gaps: { kind: 'linear', gap: 1 } }, 'dna');
-    const aln = align('GCATGCG', 'GATTACA', 'global', sc);
+    const aln = { mode: 'global' as const, score: 0, rowA: 'GCA-TGCG', rowB: 'G-ATTACA', startA: 0, endA: 7, startB: 0, endB: 7 }; // the textbook alignment, fixed
     const cells = pathCells(aln);
     expect(cells[0]).toEqual([0, 0]);
     expect(cells[cells.length - 1]).toEqual([7, 7]);
@@ -117,8 +115,8 @@ describe('input model', () => {
     if (!mismatch.ok) expect(mismatch.message).toContain('dna');
     expect(checkPair(await analyzeSequenceText('ACGT!ACGT', 'dna'), dna, 'dna').ok).toBe(false);
   });
-  it('every preset compiles for its molecule type, and wording shows real numbers', () => {
-    for (const p of PRESETS) expect(() => compileScoring(p.scoring, p.molecules === 'protein' ? 'protein' : 'dna')).not.toThrow();
+  it('every preset is accepted by the Rust core for its molecule type, and wording shows real numbers', async () => {
+    for (const p of PRESETS) await expect(alignPrecheck(p.molecules === 'protein' ? 'protein' : 'dna', p.scoring, 10, 10)).resolves.toBeDefined();
     expect(defaultPreset('protein').id).toBe('prot-affine');
     expect(defaultPreset('rna').id).toBe('dna-linear');
     expect(gapCostText({ kind: 'affine', open: 11, extend: 1 })).toContain('11 + 2 × 1 = 13');

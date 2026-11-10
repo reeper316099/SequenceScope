@@ -8,7 +8,6 @@ export function pageShim(): void {
   /** Real Tauri rejects with the command's error value; an Error carrying the same `code` and `message` is read the same way by the app. */
   const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
   const NATIVE = ['open_file', 'save_file', 'open_external', 'get_app_info', 'copy_text'];
-  w['__SEQUENCESCOPE_BACKEND__'] = 'rust';
   w['__TAURI_INTERNALS__'] = {
     transformCallback(cb: (m: unknown) => void, once?: boolean): number {
       const id = nextId++;

@@ -1,9 +1,9 @@
 // Smoke self-check for the Tauri build. Runs only when Rust started the app with SEQUENCESCOPE_SMOKE=1 (hidden window).
-// It checks the facts that matter for the migration: the UI rendered, the bridge has exactly five functions, module Web
-// Workers load under the strict CSP, no CSP violation happened, expected bad requests are refused by Rust, and the page
-// has NO access to the dialog / clipboard / opener plugins. The result goes to Rust, which prints it and exits 0 or 1.
+// It checks the facts that matter for the app: the UI rendered, the bridge has exactly five functions, Web Workers are refused
+// by the strict CSP, no other CSP violation happened, expected bad requests are refused by Rust, the application menu exists
+// and reaches the page, and the page has NO access to the dialog / clipboard / opener plugins. The result goes to Rust,
+// which prints it and exits 0 or 1.
 import { Channel, invoke } from '@tauri-apps/api/core';
-import type { PingRequest, WorkerReply } from '../shared/types';
 import { waitFor } from './util';
 import type { Check } from './util';
 
@@ -12,19 +12,19 @@ const EXPECTED_BRIDGE = ['copyText', 'getAppInfo', 'openExternal', 'openFile', '
 const violations: string[] = [];
 document.addEventListener('securitypolicyviolation', (e) => violations.push(`${e.violatedDirective} blocked ${e.blockedURI}`));
 
-/** Starts the ping worker and resolves with its answer (or null on error/timeout). */
-function pingWorker(): Promise<number | null> {
+/** True if the strict CSP refuses to start a Web Worker (the page has none and must not be able to start one). */
+function workersBlocked(): Promise<boolean> {
   return new Promise((resolve) => {
-    const worker = new Worker(new URL('../workers/ping.worker.ts', import.meta.url), { type: 'module' });
-    const timer = setTimeout(() => { worker.terminate(); resolve(null); }, 5000);
-    worker.onmessage = (ev: MessageEvent<WorkerReply<number>>): void => {
-      clearTimeout(timer);
-      worker.terminate();
-      resolve(ev.data.type === 'result' ? ev.data.value : null);
-    };
-    worker.onerror = (): void => { clearTimeout(timer); resolve(null); };
-    const msg: PingRequest = { type: 'ping', value: 21 };
-    worker.postMessage(msg);
+    const done = (blocked: boolean): void => { clearTimeout(timer); document.removeEventListener('securitypolicyviolation', onViolation); resolve(blocked); };
+    const onViolation = (e: SecurityPolicyViolationEvent): void => { if (e.violatedDirective.startsWith('worker-src')) done(true); };
+    const timer = setTimeout(() => done(false), 3000);
+    document.addEventListener('securitypolicyviolation', onViolation);
+    try {
+      const worker = new Worker(new URL('./rng.ts', import.meta.url), { type: 'module' });
+      worker.onerror = (): void => done(true);
+    } catch {
+      done(true);
+    }
   });
 }
 
@@ -42,10 +42,7 @@ async function refused(command: string, args: Record<string, unknown>): Promise<
 export async function runSmokeCheck(): Promise<void> {
   const mode = (window as unknown as Record<string, unknown>)['__SEQUENCESCOPE_SMOKE_MODE__'];
   try {
-    if (mode === 'parity') {
-      const checks = await (await import('./parity')).runParity();
-      await invoke('smoke_report', { report: { ok: checks.every((c) => c.pass), checks } });
-    } else if (mode === 'bench') {
+    if (mode === 'bench') {
       const bench = await (await import('./bench')).runBench();
       await invoke('smoke_report', { report: { ok: true, checks: [], bench } });
     } else {
@@ -71,9 +68,6 @@ async function basicChecks(): Promise<void> {
 
     const info = await window.sequenceScope.getAppInfo();
     add('getAppInfo returns version and platform', info.version.length > 0 && info.platform.length > 0, JSON.stringify(info));
-
-    const ping = await pingWorker();
-    add('module Web Worker runs under the CSP', ping === 42, String(ping));
 
     const res = await fetch(location.href);
     const csp = res.headers.get('content-security-policy') ?? '';
@@ -122,6 +116,7 @@ async function basicChecks(): Promise<void> {
     add('menu "Toggle Dark Mode" changes the theme', document.documentElement.dataset['theme'] !== themeBefore, String(document.documentElement.dataset['theme']));
     add('menu "View > Trees" shows the Trees view', document.querySelector('.view-trees:not([hidden])') !== null);
     add('no CSP violations', violations.length === 0, violations.join('; '));
+    add('the CSP refuses Web Workers', await workersBlocked()); // last, because it causes a violation on purpose
   } catch (e) {
     add('smoke check itself did not crash', false, e instanceof Error ? e.message : String(e));
   }

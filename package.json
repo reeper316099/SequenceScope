@@ -22,8 +22,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "dist": "npm run build && electron-builder",
-    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run bridge:build && vitest run",
     "test:e2e": "npm run build && playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -35,8 +35,6 @@
     "renderer:build": "vite build --config vite.tauri.config.ts",
     "bridge:build": "cargo build --release -p sequencescope --features test-bridge --bin test-bridge",
     "test:bridge": "npm run renderer:build && npm run bridge:build && playwright test -c playwright.bridge.config.ts",
-    "test:tauri-ui": "npm run renderer:build && playwright test -c playwright.tauri.config.ts",
-    "parity:generate": "vitest run --config vitest.parity.config.ts",
     "tauri": "tauri"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 // The one interface the UI uses to talk to a background computation. It is the small part of a Web Worker the UI needs
-// (postMessage / onmessage / onerror / terminate), so the TypeScript worker and the Rust (Tauri) backend are interchangeable.
+// (postMessage / onmessage / onerror / terminate), so the views do not care how the job is run (it is run by the Rust core).
 import type { WorkerReply } from '../shared/types';
 
 /** A background job runner for one kind of request. Replies arrive as `WorkerReply<R>`: progress, then a result or an error. */
@@ -11,6 +11,3 @@ export interface JobWorker<R> {
   /** Cancels the job; nothing is delivered afterwards. */
   terminate(): void;
 }
-
-/** Which implementation does the computing. */
-export type BackendName = 'ts' | 'rust';

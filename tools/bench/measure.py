@@ -1,7 +1,7 @@
-"""Runs the Tauri benchmark (src/tauri/bench.ts) for one backend and measures the app's memory from OUTSIDE.
+"""Runs the Tauri benchmark (src/tauri/bench.ts) and measures the app's memory from OUTSIDE.
 
 Usage (stdlib only, no installs):
-    python3 -I tools/bench/measure.py --binary target/release/sequencescope --backend rust [--only largestProteinAffine]
+    python3 -I tools/bench/measure.py --binary target/release/sequencescope [--only largestProteinAffine]
 
 What it measures
   * rust_process_peak_mb : the app's own process, exact peak resident set size (ru_maxrss from wait4).
@@ -35,12 +35,11 @@ def webcontent():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--binary", required=True)
-    ap.add_argument("--backend", choices=["ts", "rust"], required=True)
     ap.add_argument("--only", default=None)
     args = ap.parse_args()
 
     before = set(webcontent())
-    env = dict(os.environ, SEQUENCESCOPE_SMOKE="1", SEQUENCESCOPE_SMOKE_MODE="bench", SEQUENCESCOPE_BACKEND=args.backend)
+    env = dict(os.environ, SEQUENCESCOPE_SMOKE="1", SEQUENCESCOPE_SMOKE_MODE="bench")
     if args.only:
         env["SEQUENCESCOPE_BENCH_ONLY"] = args.only
     proc = subprocess.Popen([args.binary], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -70,7 +69,7 @@ def main():
         if line.startswith("SMOKE_REPORT "):
             report = json.loads(line[len("SMOKE_REPORT "):])
     result = {
-        "backend": args.backend,
+        "backend": "rust",
         "only": args.only,
         "exit": os.waitstatus_to_exitcode(status),
         "rust_process_peak_mb": round(rusage.ru_maxrss / 1048576, 1),  # macOS reports bytes

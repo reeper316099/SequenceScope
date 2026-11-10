@@ -1,19 +1,15 @@
 // DOM-free logic behind the Distances and Trees views: set analysis, layouts, keyboard navigation, step forests, table sorting.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadReferenceData } from '../../src/backend/api';
-import { distanceMatrixFromAligned } from '../../src/bio/distance';
-import { neighborJoining } from '../../src/bio/nj';
-import { parseNewick, writeNewick } from '../../src/bio/newick';
-import { preorder } from '../../src/bio/tree';
-import { upgma } from '../../src/bio/upgma';
+import { buildTreesFromRowsAsync, loadReferenceData, writeNewickAsync } from '../../src/backend/api';
+import { preorder } from '../../src/bio/treeAccess';
+import type { DistanceMatrix } from '../../src/shared/types';
 import { analyzeSet, sortOrder, uniquifyNames } from '../../src/ui/sequenceSet';
 import { cladeNodeKey, collapsibleKeys, layoutRadial, layoutRectangular, navigate } from '../../src/ui/treeLayout';
 import { forestAfter } from '../../src/ui/treeSteps';
-import { matrixOf } from '../helpers/trees';
+import { nw } from '../helpers/trees';
 
 beforeAll(loadReferenceData);
 
-const nw = (s: string) => parseNewick(s).tree;
 const none = new Set<string>();
 
 describe('analyzeSet', () => {
@@ -114,24 +110,32 @@ describe('keyboard navigation', () => {
 });
 
 describe('step forests', () => {
-  const m = matrixOf(['a', 'b', 'c', 'd', 'e'], [[0, 5, 9, 9, 8], [5, 0, 10, 10, 9], [9, 10, 0, 8, 7], [9, 10, 8, 0, 3], [8, 9, 7, 3, 0]]);
-  it('k = 0 is just the leaves; the last step gives exactly the final tree (UPGMA and NJ)', () => {
-    for (const r of [upgma(m), neighborJoining(m)]) {
-      expect(forestAfter(r.steps, r.names, 0).clusters.map((c) => c.node.name)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  const names = ['a', 'b', 'c', 'd', 'e'];
+  const rows = [[0, 5, 9, 9, 8], [5, 0, 10, 10, 9], [9, 10, 0, 8, 7], [9, 10, 8, 0, 3], [8, 9, 7, 3, 0]];
+  it('k = 0 is just the leaves; the last step gives exactly the final tree (UPGMA and NJ)', async () => {
+    const built = await buildTreesFromRowsAsync(names, rows);
+    for (const r of [built.upgma, built.nj]) {
+      expect(forestAfter(r.steps, r.names, 0).clusters.map((c) => c.node.name)).toEqual(names);
       const last = forestAfter(r.steps, r.names, r.steps.length).clusters;
       expect(last).toHaveLength(1);
-      expect(writeNewick({ root: (last[0] as { node: typeof r.tree.root }).node })).toBe(writeNewick(r.tree));
+      expect(await writeNewickAsync({ root: (last[0] as { node: typeof r.tree.root }).node })).toBe(await writeNewickAsync(r.tree));
     }
   });
-  it('the cluster count shrinks by one per UPGMA step', () => {
-    const r = upgma(m);
+  it('the cluster count shrinks by one per UPGMA step', async () => {
+    const r = (await buildTreesFromRowsAsync(names, rows)).upgma;
     r.steps.forEach((_, k) => expect(forestAfter(r.steps, r.names, k).clusters).toHaveLength(5 - k));
   });
 });
 
 describe('sortOrder', () => {
+  /** A 3 x 3 matrix for the taxa b, a, c (distance values chosen by hand; the sorting does not depend on how they were made). */
+  const matrix = (): DistanceMatrix => ({
+    names: ['b', 'a', 'c'], n: 3, model: 'jc', gapPolicy: 'pairwise-deletion',
+    values: Float64Array.from([0, 0.13, 1.1, 0.13, 0, 1.2, 1.1, 1.2, 0]),
+    status: new Uint8Array(9), compared: new Uint32Array(9).fill(8),
+  });
   it('sorts by a column with unusable cells last, or by name', () => {
-    const m = distanceMatrixFromAligned(['b', 'a', 'c'], ['ACGTACGT', 'ACGAACGT', 'AAAAAAAA'], 'dna', 'jc', 'pairwise-deletion');
+    const m = matrix();
     expect(sortOrder(m, { by: 'name' }, 'asc')).toEqual([1, 0, 2]);
     expect(sortOrder(m, { by: 'name' }, 'desc')).toEqual([2, 0, 1]);
     const order = sortOrder(m, { by: 'column', col: 0 }, 'asc');

@@ -26,12 +26,6 @@ export type WorkerReply<R> =
   | { type: 'result'; value: R }
   | { type: 'error'; message: string; code?: string };
 
-/** Request/reply for the Phase 2 worker smoke test (doubles a number). */
-export interface PingRequest {
-  type: 'ping';
-  value: number;
-}
-
 // ---- IPC (renderer <-> main), exposed through the preload bridge as window.sequenceScope ----
 
 /** Kinds of file the open dialog can ask for; the main process owns the extension filter for each. */

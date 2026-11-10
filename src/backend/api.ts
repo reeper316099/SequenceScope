@@ -1,36 +1,9 @@
-// The calculations the UI used to call directly, as ASYNC functions. Under Electron (and any non-Tauri page) they run the
-// TypeScript implementation; in the Tauri app with the Rust backend selected they run in Rust. Because the answers are
-// identical (proved by the parity runs), the UI does not care which one it gets. At the end of the migration the TypeScript
-// branches are deleted and only the Rust calls remain.
-import { detectAlphabet } from '../bio/alphabet';
-import type { Detection } from '../shared/results';
-import { MAX_REPLICATES } from '../bio/bootstrap';
-import { conservation, conservationCsv } from '../bio/conservation';
-import type { Conservation } from '../shared/results';
-import { correctDistance, matrixFromRows, MAX_TREE_TAXA, modelsFor as tsModelsFor, toDistanceCsv, toPhylip } from '../bio/distance';
+// The calculations the UI needs, as ASYNC functions. Every one of them runs in Rust (the Tauri commands in src-tauri/src/compute.rs
+// and the `bio_op` command in src-tauri/src/ops.rs); nothing is computed in TypeScript any more.
+import type { Conservation, Detection, MsaRequest, MsaResult, NjResult, ParsedFasta, RfResult, SubstitutionMatrix, UpgmaResult } from '../shared/results';
 import { BioError } from '../bio/errors';
-import { parseFasta, writeFasta } from '../bio/fasta';
-import { neighborJoining } from '../bio/nj';
-import type { NjResult } from '../shared/results';
-import { parseNewick, writeNewick } from '../bio/newick';
-import type { ParsedFasta } from '../shared/results';
-import { getMatrix as tsGetMatrix, listMatrices as tsListMatrices, MATRIX_CITATION, MATRIX_SOURCE } from '../bio/matrices';
-import type { SubstitutionMatrix } from '../shared/results';
-import { bruteForceOptimumSP, MAX_MSA_LENGTH, MAX_MSA_SEQS, sumOfPairsScore } from '../bio/msa';
-import type { MsaResult } from '../shared/results';
-import { assertWithinCap, cellInfo as tsCellInfo, dpFromSnapshot, MAX_DP_CELLS, MAX_ENUMERATED_ALIGNMENTS } from '../bio/pairwise';
-import type { Dp } from '../bio/pairwise';
-import { compileScoring } from '../bio/scoring';
-import { assertValidLeaves, leafDistances, midpointRoot, rerootAbove, rerootAtLeaf, rotateNode } from '../bio/tree';
-import { robinsonFoulds, uniqueBranches } from '../bio/treecompare';
-import type { RfResult } from '../shared/results';
-import { upgma } from '../bio/upgma';
-import type { UpgmaResult } from '../shared/results';
-import { MAX_SHUFFLES } from '../bio/shuffle';
-import type { AlignRequest, AlignResult, Alphabet, AlphabetChoice, BioErrorCode, CellInfo, DistanceMatrix, DpSnapshot, ScoringSpec, Sequence, Tree, TreeNode } from '../shared/types';
-import type { DistanceModel } from '../shared/types';
-import type { MsaRequest } from '../shared/results';
-import { createMsaWorker, createPairwiseWorker, selectedBackend } from './index';
+import type { AlignRequest, AlignResult, Alphabet, AlphabetChoice, BioErrorCode, CellInfo, DistanceMatrix, DistanceModel, DpSnapshot, ScoringSpec, Sequence, Tree, TreeNode } from '../shared/types';
+import { createMsaWorker, createPairwiseWorker } from './index';
 import { rustOp } from './ops';
 
 // ---------------------------------------------------------------------------------------------- reference data
@@ -72,16 +45,8 @@ function toMatrix(m: RawMatrix): SubstitutionMatrix {
 
 /** Loads the limits and substitution matrices once, at start-up; afterwards `limits()` and `getMatrix()` are synchronous. */
 export async function loadReferenceData(): Promise<void> {
-  if (selectedBackend() === 'rust') {
-    const r = await rustOp<{ limits: Limits; matrices: RawMatrix[]; modelsFor: ModelTable }>({ op: 'referenceData' });
-    cache = { limits: r.limits, matrices: new Map(r.matrices.map((m) => [m.name, toMatrix(m)])), models: r.modelsFor };
-    return;
-  }
-  cache = {
-    limits: { maxDpCells: MAX_DP_CELLS, maxEnumeratedAlignments: MAX_ENUMERATED_ALIGNMENTS, maxTreeTaxa: MAX_TREE_TAXA, maxMsaSeqs: MAX_MSA_SEQS, maxMsaLength: MAX_MSA_LENGTH, maxReplicates: MAX_REPLICATES, maxShuffles: MAX_SHUFFLES },
-    matrices: new Map(tsListMatrices().map((name) => [name, tsGetMatrix(name)])),
-    models: { dna: tsModelsFor('dna'), rna: tsModelsFor('rna'), protein: tsModelsFor('protein') },
-  };
+  const r = await rustOp<{ limits: Limits; matrices: RawMatrix[]; modelsFor: ModelTable }>({ op: 'referenceData' });
+  cache = { limits: r.limits, matrices: new Map(r.matrices.map((m) => [m.name, toMatrix(m)])), models: r.modelsFor };
 }
 
 /** The size limits (available after `loadReferenceData`). */
@@ -109,29 +74,21 @@ export function modelsFor(alphabet: Alphabet): DistanceModel[] {
   return cache.models[alphabet];
 }
 
-/** Citation and source of the matrices (for the About page). */
-export const MATRIX_INFO = { citation: MATRIX_CITATION, source: MATRIX_SOURCE };
-
 // ---------------------------------------------------------------------------------------------- FASTA and alphabet
 
 /** Parses pasted text or a FASTA file into records plus every issue. */
 export async function parseFastaAsync(text: string, options: { alphabet?: AlphabetChoice; allowGaps?: boolean } = {}): Promise<ParsedFasta> {
-  if (selectedBackend() === 'rust') {
-    return rustOp<ParsedFasta>({ op: 'fastaParse', text, alphabet: options.alphabet ?? 'auto', allowGaps: options.allowGaps ?? false });
-  }
-  return parseFasta(text, options);
+  return rustOp<ParsedFasta>({ op: 'fastaParse', text, alphabet: options.alphabet ?? 'auto', allowGaps: options.allowGaps ?? false });
 }
 
 /** Writes records as FASTA text with the given line width. */
 export async function writeFastaAsync(records: readonly Sequence[], width = 60): Promise<string> {
-  if (selectedBackend() === 'rust') return rustOp<string>({ op: 'fastaWrite', records, width });
-  return writeFasta(records, width);
+  return rustOp<string>({ op: 'fastaWrite', records, width });
 }
 
 /** Guesses the alphabet of some residues. */
 export async function detectAlphabetAsync(residues: string): Promise<Detection> {
-  if (selectedBackend() === 'rust') return rustOp<Detection>({ op: 'detectAlphabet', residues });
-  return detectAlphabet(residues);
+  return rustOp<Detection>({ op: 'detectAlphabet', residues });
 }
 
 // ---------------------------------------------------------------------------------------------- one-off alignment
@@ -156,10 +113,7 @@ export function alignOnce(req: AlignRequest): Promise<AlignResult> {
 
 /** Checks the scoring choice and the table size BEFORE an alignment starts; throws a BioError like the job itself would. */
 export async function alignPrecheck(alphabet: Alphabet, scoring: ScoringSpec, lenA: number, lenB: number): Promise<{ affine: boolean }> {
-  if (selectedBackend() === 'rust') return rustOp<{ affine: boolean }>({ op: 'alignPrecheck', alphabet, scoring, lenA, lenB });
-  const sc = compileScoring(scoring, alphabet);
-  assertWithinCap(lenA, lenB, sc.affine);
-  return { affine: sc.affine };
+  return rustOp<{ affine: boolean }>({ op: 'alignPrecheck', alphabet, scoring, lenA, lenB });
 }
 
 /** What the matrix view and the details panel need about one finished alignment: the tables plus the inputs they came from. */
@@ -194,19 +148,12 @@ function valuesAround(dp: DpView, i: number, j: number): Record<string, unknown>
   return { kind: 'affine', diag: tri(diag), up: tri(up), left: tri(left), here: tri(idx), pointer: dp.P[idx] };
 }
 
-const tsDpCache = new WeakMap<DpView, Dp>();
-
 /** Explains one DP cell (candidate values and chosen move) for the details panel. */
 export async function cellInfoAsync(dp: DpView, i: number, j: number): Promise<CellInfo> {
-  if (selectedBackend() === 'rust') {
-    return rustOp<CellInfo>({
+  return rustOp<CellInfo>({
       op: 'cellInfo', mode: dp.mode, i, j, letterA: i > 0 ? dp.strA.charAt(i - 1) : '', letterB: j > 0 ? dp.strB.charAt(j - 1) : '',
       alphabet: dp.alphabet, scoring: dp.scoring, values: valuesAround(dp, i, j),
-    });
-  }
-  let ts = tsDpCache.get(dp);
-  if (ts === undefined) { ts = dpFromSnapshot(dp, dp.strA, dp.strB, compileScoring(dp.scoring, dp.alphabet)); tsDpCache.set(dp, ts); }
-  return tsCellInfo(ts, i, j);
+  });
 }
 
 // ---------------------------------------------------------------------------------------------- trees and distances
@@ -245,29 +192,22 @@ function matrixIn(m: DistanceMatrix): Record<string, unknown> {
 
 /** Both trees (with every recorded step) from a distance matrix; throws a BioError like the algorithms do. */
 export async function buildTreesAsync(m: DistanceMatrix): Promise<{ upgma: UpgmaResult; nj: NjResult }> {
-  if (selectedBackend() === 'rust') return rustOp<{ upgma: UpgmaResult; nj: NjResult }>({ op: 'treeBuild', matrix: matrixIn(m) });
-  return { upgma: upgma(m), nj: neighborJoining(m) };
+  return rustOp<{ upgma: UpgmaResult; nj: NjResult }>({ op: 'treeBuild', matrix: matrixIn(m) });
 }
 
 /** Both trees from plain rows of numbers (the teaching examples). */
 export async function buildTreesFromRowsAsync(names: string[], rows: number[][]): Promise<{ upgma: UpgmaResult; nj: NjResult }> {
-  if (selectedBackend() === 'rust') return rustOp<{ upgma: UpgmaResult; nj: NjResult }>({ op: 'treeBuildRows', names, rows });
-  const m = matrixFromRows(names, rows);
-  return { upgma: upgma(m), nj: neighborJoining(m) };
+  return rustOp<{ upgma: UpgmaResult; nj: NjResult }>({ op: 'treeBuildRows', names, rows });
 }
 
 /** Reads a Newick string. With `validate` the leaves must also be named and unique. */
 export async function parseNewickAsync(text: string, validate = false): Promise<{ tree: Tree; extraTrees: number }> {
-  if (selectedBackend() === 'rust') return rustOp<{ tree: Tree; extraTrees: number }>({ op: 'newickParse', text, validate });
-  const parsed = parseNewick(text);
-  if (validate) assertValidLeaves(parsed.tree);
-  return parsed;
+  return rustOp<{ tree: Tree; extraTrees: number }>({ op: 'newickParse', text, validate });
 }
 
 /** Writes trees as Newick (one string per tree). */
 export async function writeNewickMany(trees: readonly Tree[], opts: { includeLengths?: boolean; includeSupport?: boolean } = {}): Promise<string[]> {
-  if (selectedBackend() === 'rust') return rustOp<string[]>({ op: 'newickWrite', trees: trees.map(flattenTree), includeLengths: opts.includeLengths ?? true, includeSupport: opts.includeSupport ?? true });
-  return trees.map((t) => writeNewick(t, opts));
+  return rustOp<string[]>({ op: 'newickWrite', trees: trees.map(flattenTree), includeLengths: opts.includeLengths ?? true, includeSupport: opts.includeSupport ?? true });
 }
 
 /** Writes one tree as Newick. */
@@ -280,64 +220,49 @@ export type TreeEdit = { kind: 'rotate'; index: number } | { kind: 'rerootAbove'
 
 /** Applies one edit and returns the new tree (a BioError if the edit is not possible). */
 export async function editTreeAsync(tree: Tree, edit: TreeEdit): Promise<Tree> {
-  if (selectedBackend() === 'rust') return rustOp<Tree>({ op: 'treeEdit', tree: flattenTree(tree), edit });
-  switch (edit.kind) {
-    case 'rotate': return rotateNode(tree, edit.index);
-    case 'rerootAbove': return rerootAbove(tree, edit.index, edit.fraction);
-    case 'rerootAtLeaf': return rerootAtLeaf(tree, edit.leaf);
-    case 'midpoint': return midpointRoot(tree);
-  }
+  return rustOp<Tree>({ op: 'treeEdit', tree: flattenTree(tree), edit });
 }
 
 /** Robinson-Foulds comparison plus the pre-order indexes of the branches each tree lacks in the other. */
 export async function compareTreesAsync(a: Tree, b: Tree): Promise<{ rf: RfResult; uniqueA: number[]; uniqueB: number[] }> {
-  if (selectedBackend() === 'rust') return rustOp<{ rf: RfResult; uniqueA: number[]; uniqueB: number[] }>({ op: 'treeCompare', a: flattenTree(a), b: flattenTree(b) });
-  const rf = robinsonFoulds(a, b);
-  return { rf, uniqueA: [...uniqueBranches(a, b)], uniqueB: [...uniqueBranches(b, a)] };
+  return rustOp<{ rf: RfResult; uniqueA: number[]; uniqueB: number[] }>({ op: 'treeCompare', a: flattenTree(a), b: flattenTree(b) });
 }
 
 /** Leaf names and the path distance between every pair of leaves. */
 export async function leafDistancesAsync(tree: Tree): Promise<{ names: string[]; dist: number[][] }> {
-  if (selectedBackend() === 'rust') return rustOp<{ names: string[]; dist: number[][] }>({ op: 'leafDistances', tree: flattenTree(tree) });
-  return leafDistances(tree);
+  return rustOp<{ names: string[]; dist: number[][] }>({ op: 'leafDistances', tree: flattenTree(tree) });
 }
 
 /** The corrected distance for each observed proportion (null where the correction is undefined). */
 export async function correctDistancesAsync(model: 'jc' | 'poisson', ps: number[]): Promise<(number | null)[]> {
-  if (selectedBackend() === 'rust') return rustOp<(number | null)[]>({ op: 'correctDistance', model, ps });
-  return ps.map((p) => correctDistance(p, model));
+  return rustOp<(number | null)[]>({ op: 'correctDistance', model, ps });
 }
 
 /** A distance matrix as CSV or PHYLIP text (PHYLIP throws a BioError when some distances are unusable). */
 export async function distanceExportAsync(m: DistanceMatrix, format: 'csv' | 'phylip'): Promise<string> {
-  if (selectedBackend() === 'rust') return rustOp<string>({ op: 'distanceExport', matrix: matrixIn(m), format });
-  return format === 'csv' ? toDistanceCsv(m) : toPhylip(m);
+  return rustOp<string>({ op: 'distanceExport', matrix: matrixIn(m), format });
 }
 
 // ---------------------------------------------------------------------------------------------- multiple alignment helpers
 
 /** Per-column conservation statistics of an alignment. */
 export async function conservationAsync(rows: readonly string[], alphabet: Alphabet, threshold = 0.5): Promise<Conservation> {
-  if (selectedBackend() === 'rust') return rustOp<Conservation>({ op: 'conservation', rows, alphabet, threshold });
-  return conservation(rows, alphabet, threshold);
+  return rustOp<Conservation>({ op: 'conservation', rows, alphabet, threshold });
 }
 
 /** Conservation as CSV text. */
 export async function conservationCsvAsync(rows: readonly string[], alphabet: Alphabet): Promise<string> {
-  if (selectedBackend() === 'rust') return rustOp<string>({ op: 'conservationCsv', rows, alphabet });
-  return conservationCsv(rows, alphabet);
+  return rustOp<string>({ op: 'conservationCsv', rows, alphabet });
 }
 
 /** The sum-of-pairs score of an alignment. */
 export async function sumOfPairsAsync(rows: readonly string[], alphabet: Alphabet, scoring: ScoringSpec): Promise<number> {
-  if (selectedBackend() === 'rust') return rustOp<number>({ op: 'sumOfPairs', rows, alphabet, scoring });
-  return sumOfPairsScore(rows, compileScoring(scoring, alphabet));
+  return rustOp<number>({ op: 'sumOfPairs', rows, alphabet, scoring });
 }
 
 /** The exhaustive sum-of-pairs optimum for a tiny set (at most 4 sequences of at most 6 residues). */
 export async function bruteForceAsync(seqs: readonly string[], alphabet: Alphabet, scoring: ScoringSpec): Promise<{ score: number; rows: string[] }> {
-  if (selectedBackend() === 'rust') return rustOp<{ score: number; rows: string[] }>({ op: 'bruteForce', seqs, alphabet, scoring });
-  return bruteForceOptimumSP(seqs, compileScoring(scoring, alphabet));
+  return rustOp<{ score: number; rows: string[] }>({ op: 'bruteForce', seqs, alphabet, scoring });
 }
 
 /** Runs ONE progressive multiple alignment on the selected backend (errors reject with a BioError). */

@@ -1,85 +1,33 @@
-// Backend switch. The UI asks this module for a worker; it returns either the TypeScript Web Worker (the reference
-// implementation, always the default) or the Rust one (only inside the Tauri app). Chosen per job, so it can be flipped
-// without reloading:
-//   1. window.__SEQUENCESCOPE_BACKEND__  ("ts" | "rust"; set by the Tauri app from the SEQUENCESCOPE_BACKEND environment
-//      variable, or by tests)
-//   2. localStorage "sequencescope.backend"  (same values; set it from the developer console to flip the app)
-//   3. "ts"
-import type { BootstrapResult } from '../shared/results';
-import type { MsaResult } from '../shared/results';
-import type { AlignResult, DistanceMatrix, ShuffleSummary, WorkerReply } from '../shared/types';
+// Background jobs. The UI asks this module for a worker; each one runs its job in the Rust core (src-tauri/src/compute.rs) and
+// presents it with the small Web-Worker-like interface the views already use (progress, then a result or an error, and terminate).
+import type { BootstrapResult, MsaResult } from '../shared/results';
+import type { AlignResult, DistanceMatrix, ShuffleSummary } from '../shared/types';
 import { RustWorker } from './rust';
-import type { BackendName, JobWorker } from './types';
+import type { JobWorker } from './types';
 
-export type { BackendName, JobWorker } from './types';
-
-/** Reads a backend name from an untrusted source; anything but "ts" / "rust" is ignored. */
-function parse(v: unknown): BackendName | null {
-  return v === 'ts' || v === 'rust' ? v : null;
-}
-
-/** True when running inside the Tauri app (the only place the Rust backend exists). */
-export function rustAvailable(): boolean {
-  return typeof window !== 'undefined' && Reflect.has(window, '__TAURI_INTERNALS__');
-}
-
-/** The backend that new jobs will use right now. */
-export function selectedBackend(): BackendName {
-  if (!rustAvailable()) return 'ts';
-  let stored: unknown = null;
-  try {
-    stored = localStorage.getItem('sequencescope.backend');
-  } catch {
-    /* storage can be unavailable (private mode); fall through to the default */
-  }
-  return parse((window as unknown as Record<string, unknown>)['__SEQUENCESCOPE_BACKEND__']) ?? parse(stored) ?? 'ts';
-}
-
-/** Wraps a real Web Worker in the JobWorker interface (replies are passed through untouched, typed arrays included). */
-class TsWorker<R> implements JobWorker<R> {
-  onmessage: ((ev: { data: WorkerReply<R> }) => void) | null = null;
-  onerror: ((ev: { message: string }) => void) | null = null;
-
-  constructor(private readonly worker: Worker) {
-    worker.onmessage = (ev: MessageEvent<WorkerReply<R>>): void => this.onmessage?.({ data: ev.data });
-    worker.onerror = (ev: ErrorEvent): void => this.onerror?.({ message: ev.message });
-  }
-
-  postMessage(message: unknown): void {
-    this.worker.postMessage(message);
-  }
-
-  terminate(): void {
-    this.worker.terminate();
-  }
-}
+export type { JobWorker } from './types';
 
 /** A worker that runs ONE pairwise alignment (request: AlignRequest, result: AlignResult). */
-export function createPairwiseWorker(backend: BackendName = selectedBackend()): JobWorker<AlignResult> {
-  if (backend === 'rust') return new RustWorker<AlignResult>('align');
-  return new TsWorker<AlignResult>(new Worker(new URL('../workers/pairwise.worker.ts', import.meta.url), { type: 'module' }));
+export function createPairwiseWorker(): JobWorker<AlignResult> {
+  return new RustWorker<AlignResult>('align');
 }
 
 /** A worker that runs ONE shuffle significance test (request: ShuffleRequest, result: ShuffleSummary). */
-export function createShuffleWorker(backend: BackendName = selectedBackend()): JobWorker<ShuffleSummary> {
-  if (backend === 'rust') return new RustWorker<ShuffleSummary>('shuffle');
-  return new TsWorker<ShuffleSummary>(new Worker(new URL('../workers/shuffle.worker.ts', import.meta.url), { type: 'module' }));
+export function createShuffleWorker(): JobWorker<ShuffleSummary> {
+  return new RustWorker<ShuffleSummary>('shuffle');
 }
 
 /** A worker that computes ONE distance matrix (request: DistancesRequest, result: DistanceMatrix). */
-export function createDistancesWorker(backend: BackendName = selectedBackend()): JobWorker<DistanceMatrix> {
-  if (backend === 'rust') return new RustWorker<DistanceMatrix>('distances');
-  return new TsWorker<DistanceMatrix>(new Worker(new URL('../workers/distances.worker.ts', import.meta.url), { type: 'module' }));
+export function createDistancesWorker(): JobWorker<DistanceMatrix> {
+  return new RustWorker<DistanceMatrix>('distances');
 }
 
 /** A worker that runs ONE column bootstrap (request: BootstrapRequest, result: BootstrapResult). */
-export function createBootstrapWorker(backend: BackendName = selectedBackend()): JobWorker<BootstrapResult> {
-  if (backend === 'rust') return new RustWorker<BootstrapResult>('bootstrap');
-  return new TsWorker<BootstrapResult>(new Worker(new URL('../workers/bootstrap.worker.ts', import.meta.url), { type: 'module' }));
+export function createBootstrapWorker(): JobWorker<BootstrapResult> {
+  return new RustWorker<BootstrapResult>('bootstrap');
 }
 
 /** A worker that runs ONE progressive multiple alignment (request: MsaRequest, result: MsaResult). */
-export function createMsaWorker(backend: BackendName = selectedBackend()): JobWorker<MsaResult> {
-  if (backend === 'rust') return new RustWorker<MsaResult>('msa');
-  return new TsWorker<MsaResult>(new Worker(new URL('../workers/msa.worker.ts', import.meta.url), { type: 'module' }));
+export function createMsaWorker(): JobWorker<MsaResult> {
+  return new RustWorker<MsaResult>('msa');
 }

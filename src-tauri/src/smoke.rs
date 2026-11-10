@@ -7,10 +7,9 @@ use std::time::Duration;
 use tauri::AppHandle;
 
 /// Seconds a basic smoke run may take before it is ended with exit code 2 (so a hung page never leaves a process behind).
-/// Parity and benchmark runs do much more work and get longer limits.
+/// A benchmark run does much more work and gets a longer limit.
 fn watchdog_seconds() -> u64 {
     match mode() {
-        "parity" => 1200,
         "bench" => 1500,
         _ => 60,
     }
@@ -21,23 +20,11 @@ pub fn enabled() -> bool {
     std::env::var("SEQUENCESCOPE_SMOKE").is_ok_and(|v| v == "1")
 }
 
-/// What the smoke run should do: "basic" (security + wiring checks), "parity" (TypeScript backend vs Rust backend), or
-/// "bench" (timings). Only these literals ever reach the page, whatever the environment variable holds.
+/// What the smoke run should do: "basic" (security + wiring checks) or "bench" (timings). Only these literals ever reach the page, whatever the environment variable holds.
 pub fn mode() -> &'static str {
     match std::env::var("SEQUENCESCOPE_SMOKE_MODE").as_deref() {
-        Ok("parity") => "parity",
         Ok("bench") => "bench",
         _ => "basic",
-    }
-}
-
-/// Which compute backend the page should use: "rust", "ts", or None for the page's own default. Chosen with the
-/// environment variable SEQUENCESCOPE_BACKEND; anything else is ignored.
-pub fn backend() -> Option<&'static str> {
-    match std::env::var("SEQUENCESCOPE_BACKEND").as_deref() {
-        Ok("rust") => Some("rust"),
-        Ok("ts") => Some("ts"),
-        _ => None,
     }
 }
 
@@ -59,12 +46,9 @@ pub fn bench_only() -> Option<&'static str> {
     NAMES.into_iter().find(|n| *n == wanted)
 }
 
-/// The JavaScript that runs before the page's own scripts: it passes the backend choice and the smoke-test settings in.
+/// The JavaScript that runs before the page's own scripts: it passes the smoke-test settings in.
 pub fn init_script(smoke_mode: bool) -> String {
     let mut script = String::new();
-    if let Some(b) = backend() {
-        script.push_str(&format!("window.__SEQUENCESCOPE_BACKEND__ = \"{b}\";"));
-    }
     if let (true, Some(only)) = (smoke_mode, bench_only()) {
         script.push_str(&format!("window.__SEQUENCESCOPE_BENCH_ONLY__ = \"{only}\";"));
     }
