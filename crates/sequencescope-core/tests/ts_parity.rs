@@ -6,7 +6,9 @@
 
 mod common;
 
-use common::{alignment_json, alphabet_from_str, mode_from_str, read_json, spec_from_json, table_hashes};
+use common::{
+    alignment_json, alphabet_from_str, mode_from_str, normalize_numbers, read_json, spec_from_json, table_hashes,
+};
 use sequencescope_core::alphabet::{clean_sequence_text, detect_alphabet, find_invalid};
 use sequencescope_core::error::BioError;
 use sequencescope_core::fasta::{
@@ -14,7 +16,9 @@ use sequencescope_core::fasta::{
 };
 use sequencescope_core::matrices::{get_matrix, list_matrices};
 use sequencescope_core::pairwise::{align_score_only, fill_matrix, traceback_all, traceback_first};
+use sequencescope_core::rng::{Rng, derive_seed};
 use sequencescope_core::scoring::compile_scoring;
+use sequencescope_core::shuffle::{ShuffleOptions, ShuffleOutcome, run_shuffle_test, shuffle_residues};
 use sequencescope_core::types::Alphabet;
 use serde_json::{Value, json};
 
@@ -216,4 +220,104 @@ fn substitution_matrices_match_typescript_values_and_checksums() {
         cells += values.len();
     }
     println!("matrix parity: {cells} cells, 0 mismatches");
+}
+
+#[test]
+fn prng_streams_and_derived_seeds_match_typescript_exactly() {
+    let fixture = read_json("tests/fixtures/parity/rng-shuffle-ts.json");
+    let cases = fixture["rngCases"].as_array().expect("rngCases"); // test code
+    let mut values = 0;
+    for c in cases {
+        let seed = c["seed"].as_u64().expect("seed") as u32; // test code
+        let mut r = Rng::new(seed);
+        let u32s: Vec<u32> = (0..30).map(|_| r.next_u32()).collect();
+        assert_eq!(json!(u32s), c["u32"], "seed {seed}: uint32 stream");
+        let mut r = Rng::new(seed);
+        let floats: Vec<f64> = (0..10).map(|_| r.next_float()).collect();
+        assert_eq!(json!(floats), c["floats"], "seed {seed}: floats are bit-identical");
+        for entry in c["ints"].as_array().expect("ints") {
+            // test code
+            let bound = entry["bound"].as_u64().expect("bound"); // test code
+            let mut r = Rng::new(seed);
+            let got: Vec<u32> = (0..20).map(|_| r.next_int(bound).expect("valid bound")).collect(); // test code
+            assert_eq!(json!(got), entry["values"], "seed {seed} bound {bound}");
+        }
+        for d in c["derived"].as_array().expect("derived") {
+            // test code
+            let stream = d["stream"].as_u64().expect("stream") as u32; // test code
+            assert_eq!(
+                json!(derive_seed(seed, stream)),
+                d["seed"],
+                "seed {seed} stream {stream}"
+            );
+        }
+        values += 30 + 10 + 9 * 20 + 7;
+    }
+    println!("PRNG parity: {} seeds, {values} values, 0 mismatches", cases.len());
+}
+
+#[test]
+fn shuffling_matches_typescript() {
+    let fixture = read_json("tests/fixtures/parity/rng-shuffle-ts.json");
+    let cases = fixture["shuffleCases"].as_array().expect("shuffleCases"); // test code
+    let mut mismatches = Vec::new();
+    for c in cases {
+        let seed = c["seed"].as_u64().expect("seed") as u32; // test code
+        let got = shuffle_residues(&mut Rng::new(seed), c["input"].as_str().expect("input")).expect("shuffle"); // test code
+        if json!(got) != c["expected"] {
+            mismatches.push(format!(
+                "seed {seed} input {}: ts {} rust {got}",
+                c["input"], c["expected"]
+            ));
+        }
+    }
+    report("shuffle parity", cases.len(), &mismatches);
+}
+
+/// Runs one shuffle-test case in Rust and builds the same JSON shape as the TypeScript generator.
+fn rust_shuffle_test(c: &Value) -> Value {
+    let alphabet = alphabet_from_str(c["alphabet"].as_str().expect("alphabet")); // test code
+    let mode = mode_from_str(c["mode"].as_str().expect("mode")); // test code
+    let sc = compile_scoring(&spec_from_json(&c["scoring"]), alphabet).expect("valid scoring"); // test code
+    let opts = ShuffleOptions {
+        a: c["a"].as_str().expect("a"), // test code
+        b: c["b"].as_str().expect("b"), // test code
+        mode,
+        scoring: &sc,
+        shuffles: c["shuffles"].as_u64().expect("shuffles") as u32, // test code
+        seed: c["seed"].as_u64().expect("seed") as u32,             // test code
+    };
+    match run_shuffle_test(&opts, &mut |_| {}, &mut || false) {
+        Ok(ShuffleOutcome::Done(r)) => {
+            json!({ "realScore": r.real_score, "scores": r.scores, "mean": r.mean, "sd": r.sd, "z": r.z, "atLeastAsGood": r.at_least_as_good, "pValue": r.p_value })
+        }
+        Ok(ShuffleOutcome::Cancelled { .. }) => json!({ "error": "unexpected cancel" }),
+        Err(e) => json!({ "error": { "code": e.code.as_str(), "message": e.message } }),
+    }
+}
+
+#[test]
+fn shuffle_significance_test_matches_typescript_including_floats() {
+    let fixture = read_json("tests/fixtures/parity/rng-shuffle-ts.json");
+    let cases = fixture["testCases"].as_array().expect("testCases"); // test code
+    let mut mismatches = Vec::new();
+    let mut errors = 0;
+    for c in cases {
+        if c["expected"].get("error").is_some() {
+            errors += 1;
+        }
+        let got = normalize_numbers(&rust_shuffle_test(c));
+        if got != normalize_numbers(&c["expected"]) {
+            mismatches.push(format!(
+                "shuffles {} seed {} a={} b={}\n  ts:   {}\n  rust: {}",
+                c["shuffles"], c["seed"], c["a"], c["b"], c["expected"], got
+            ));
+        }
+    }
+    assert!(errors >= 3, "the fixture must include typed-error cases");
+    report(
+        "shuffle-test parity (every score, mean, sd, z, p-value bit-identical)",
+        cases.len(),
+        &mismatches,
+    );
 }

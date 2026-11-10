@@ -12,6 +12,7 @@ Python scripts that make test fixtures and fetch example data. The app itself ne
 | `crosscheck_fresh.py` | FRESH cross-check: random cases driven through the real app UI; compares exports with Biopython/SciPy (see its docstring) |
 | `gen_alignment_refs.py` | `tests/fixtures/reference/pairwise.json` (Biopython PairwiseAligner scores/alignments) |
 | `ts-parity/gen.test.ts` | `tests/fixtures/parity/*.json`: the TypeScript implementation's exact outputs on a seeded input set, replayed by the Rust tests (`npm run parity:generate`; needs only npm) |
+| `bench/measure.py` | Runs the in-window benchmark (`SEQUENCESCOPE_SMOKE_MODE=bench`) for one backend and measures peak memory from outside (stdlib only); see `docs/rust-migration/CHECKPOINT-3-BENCHMARKS.md` |
 | `gen_tree_refs.py` | `tests/fixtures/reference/trees.json` (Biopython UPGMA / NJ trees) |
 
 ## Setup (no virtualenv)

@@ -1,5 +1,7 @@
 // "How unusual is this score?": seeded shuffle test in a worker, with progress, Cancel, a Chart.js histogram,
 // z-score and empirical p-value, and clear caveats. States are a discriminated union (JobState).
+import { createShuffleWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import { BarController, BarElement, CategoryScale, Chart, LinearScale, Tooltip } from 'chart.js';
 import type { AlignMode, JobState, ScoringSpec, ShuffleRequest, ShuffleSummary, WorkerReply } from '../shared/types';
 import type { Alphabet } from '../shared/types';
@@ -53,7 +55,7 @@ export function createSignificancePanel(): SignificancePanel {
 
   let ctx: ShuffleContext | null = null;
   let state: JobState<ShuffleSummary> = { status: 'idle' };
-  let worker: Worker | null = null;
+  let worker: JobWorker<ShuffleSummary> | null = null;
   let ranWith: string | null = null;
   let chart: Chart | null = null;
   let change: () => void = () => undefined;
@@ -120,10 +122,10 @@ export function createSignificancePanel(): SignificancePanel {
       render(); return;
     }
     worker?.terminate();
-    worker = new Worker(new URL('../workers/shuffle.worker.ts', import.meta.url), { type: 'module' });
+    worker = createShuffleWorker();
     ranWith = signature(ctx);
     state = { status: 'running', progress: 0 };
-    worker.onmessage = (e: MessageEvent<WorkerReply<ShuffleSummary>>) => {
+    worker.onmessage = (e: { data: WorkerReply<ShuffleSummary> }) => {
       const m = e.data;
       if (m.type === 'progress') state = { status: 'running', progress: m.fraction };
       else if (m.type === 'result') { state = { status: 'done', result: m.value }; worker?.terminate(); worker = null; }

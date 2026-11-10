@@ -204,3 +204,17 @@ pub fn mode_from_str(s: &str) -> AlignMode {
 pub fn alignment_json(a: &PairwiseAlignment) -> Value {
     json!({ "mode": a.mode.as_str(), "score": a.score, "rowA": a.row_a, "rowB": a.row_b, "startA": a.start_a, "endA": a.end_a, "startB": a.start_b, "endB": a.end_b })
 }
+
+/// Rewrites integer-valued floats (1.0) as integers (1), recursively. JavaScript prints 1 for both, serde_json prints 1.0
+/// for a float; the NUMBERS are equal, only the JSON spelling differs. The comparison stays exact (no tolerance).
+pub fn normalize_numbers(v: &Value) -> Value {
+    match v {
+        Value::Number(n) => match n.as_f64() {
+            Some(f) if n.is_f64() && f.fract() == 0.0 && f.abs() < 9e15 => json!(f as i64),
+            _ => v.clone(),
+        },
+        Value::Array(a) => Value::Array(a.iter().map(normalize_numbers).collect()),
+        Value::Object(o) => Value::Object(o.iter().map(|(k, x)| (k.clone(), normalize_numbers(x))).collect()),
+        other => other.clone(),
+    }
+}

@@ -6,6 +6,8 @@ import { compileScoring } from '../bio/scoring';
 import type { CompiledScoring } from '../bio/scoring';
 import { alignmentToClustal, alignmentToFasta, matrixToCsv } from '../io/export';
 import type { ProjectFile } from '../io/project';
+import { createPairwiseWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import type { AlignRequest, AlignResult, AlphabetChoice, AlignMode, MenuAction, PairwiseAlignment, ScoringSpec, WorkerReply, Alphabet } from '../shared/types';
 import { callout, card, toast } from './cards';
 import { createDetailsPanel } from './detailsPanel';
@@ -56,7 +58,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   let lastKind: 'nucleotide' | 'protein' | null = null;
   let keepScoringOnce = false; // set when a project was just opened: its scoring must not be replaced by a preset
   let runId = 0;
-  let worker: Worker | null = null;
+  let worker: JobWorker<AlignResult> | null = null;
   let dp: Dp | null = null;
   let current: PairwiseAlignment | null = null;
   let runState: RunState = { status: 'empty', message: 'Enter or open two sequences to align.' };
@@ -240,8 +242,8 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     const myRun = ++runId;
     runState = { status: 'running' }; showStatus();
     const a = analysisA.residues; const b = analysisB.residues;
-    worker = new Worker(new URL('../workers/pairwise.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (ev: MessageEvent<WorkerReply<AlignResult>>) => {
+    worker = createPairwiseWorker();
+    worker.onmessage = (ev: { data: WorkerReply<AlignResult> }) => {
       if (myRun !== runId) return;
       const m = ev.data;
       worker?.terminate(); worker = null;

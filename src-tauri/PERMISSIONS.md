@@ -12,6 +12,10 @@ Tauri's rule: the web page can only call what a *capability file* allows. Ours i
 | `allow-open-external` | `open_external` | "Open in browser" links | `https` only, no credentials, host must be exactly `github.com`, `www.ncbi.nlm.nih.gov` or `www.uniprot.org`; length ≤ 2048 |
 | `allow-get-app-info` | `get_app_info` | About page (version, platform) | Read-only facts |
 | `allow-copy-text` | `copy_text` | Copy a Newick string | Text only, ≤ 5 MB |
+| `allow-align-pair` | `align_pair` | Run an alignment in Rust | Request shape and numbers validated (whole numbers in range, known alphabet/mode/matrix, enumeration cap ≥ 1); sequences limited by the 5001² cell cap; runs on a worker thread; cancellable |
+| `allow-shuffle-test` | `shuffle_test` | Run the seeded shuffle significance test in Rust | 1–5000 shuffles, seed 0–4294967295, same checks as above; cancellable |
+| `allow-cancel-job` | `cancel_job` | Stop a running alignment/shuffle (the page's Cancel button) | Only sets a flag for the job id; harmless for unknown or finished ids |
+| `allow-smoke-active-jobs` | `smoke_active_jobs` | Smoke test proves a cancelled job really stopped | Refuses unless the process was started with `SEQUENCESCOPE_SMOKE=1` |
 | `allow-smoke-report` | `smoke_report` | Hidden-window smoke test reports its result | Refuses unless the process was started with `SEQUENCESCOPE_SMOKE=1`, so it does nothing in a normal run |
 
 ## What is deliberately NOT granted
@@ -34,6 +38,18 @@ form-action 'none'; frame-ancestors 'none'
 Same as the Electron CSP (no inline scripts or styles, no network sources) plus `ipc:` / `http://ipc.localhost`,
 which Tauri uses to deliver command calls. `devCsp` is only used by `tauri dev` and additionally allows inline styles
 and the local Vite websocket for hot reload.
+
+## Compute commands (Checkpoint 3)
+
+The three compute commands take only plain data (sequences, scoring numbers) and touch no files, clipboard, network or
+shell. They are limited in size (5001² DP cells, 5000 shuffles), run on a background thread, and every job can be
+cancelled. Progress arrives on a Tauri `Channel`; an alignment result comes back as one raw binary buffer.
+
+## Choosing the backend (not a permission, but a setting)
+
+`SEQUENCESCOPE_BACKEND=rust` or `ts` (environment variable read by the app and passed to the page), or
+`localStorage.setItem('sequencescope.backend', 'rust')` in the web inspector. The default is `ts` until the cutover.
+Under Electron the switch does nothing: the TypeScript workers are the only backend there.
 
 ## Other protections
 

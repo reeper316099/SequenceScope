@@ -8,6 +8,10 @@ fn main() {
             "open_external",
             "get_app_info",
             "copy_text",
+            "align_pair",
+            "shuffle_test",
+            "cancel_job",
+            "smoke_active_jobs",
             "smoke_report",
         ])),
     )

@@ -2,28 +2,15 @@
 // It checks the facts that matter for the migration: the UI rendered, the bridge has exactly five functions, module Web
 // Workers load under the strict CSP, no CSP violation happened, expected bad requests are refused by Rust, and the page
 // has NO access to the dialog / clipboard / opener plugins. The result goes to Rust, which prints it and exits 0 or 1.
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import type { PingRequest, WorkerReply } from '../shared/types';
+import { waitFor } from './util';
+import type { Check } from './util';
 
-interface Check {
-  name: string;
-  pass: boolean;
-  detail?: string;
-}
 
 const EXPECTED_BRIDGE = ['copyText', 'getAppInfo', 'openExternal', 'openFile', 'saveFile'];
 const violations: string[] = [];
 document.addEventListener('securitypolicyviolation', (e) => violations.push(`${e.violatedDirective} blocked ${e.blockedURI}`));
-
-/** Waits (up to `ms`) until `test` returns true; resolves false on timeout. */
-async function waitFor(test: () => boolean, ms: number): Promise<boolean> {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (test()) return true;
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  return test();
-}
 
 /** Starts the ping worker and resolves with its answer (or null on error/timeout). */
 function pingWorker(): Promise<number | null> {
@@ -51,8 +38,26 @@ async function refused(command: string, args: Record<string, unknown>): Promise<
   }
 }
 
-/** Runs every check, then sends one report to Rust. */
+/** Runs the smoke mode the app was started with, then sends one report to Rust (which prints it and exits). */
 export async function runSmokeCheck(): Promise<void> {
+  const mode = (window as unknown as Record<string, unknown>)['__SEQUENCESCOPE_SMOKE_MODE__'];
+  try {
+    if (mode === 'parity') {
+      const checks = await (await import('./parity')).runParity();
+      await invoke('smoke_report', { report: { ok: checks.every((c) => c.pass), checks } });
+    } else if (mode === 'bench') {
+      const bench = await (await import('./bench')).runBench();
+      await invoke('smoke_report', { report: { ok: true, checks: [], bench } });
+    } else {
+      await basicChecks();
+    }
+  } catch (e) {
+    await invoke('smoke_report', { report: { ok: false, checks: [{ name: `smoke mode ${String(mode)} crashed`, pass: false, detail: e instanceof Error ? `${e.message}\n${e.stack ?? ''}` : String(e) }] } });
+  }
+}
+
+/** The basic checks: wiring, security, CSP. */
+async function basicChecks(): Promise<void> {
   const checks: Check[] = [];
   const add = (name: string, pass: boolean, detail?: string): void => { checks.push(detail === undefined ? { name, pass } : { name, pass, detail }); };
   try {
@@ -90,6 +95,10 @@ export async function runSmokeCheck(): Promise<void> {
     add('page cannot call the opener plugin', await refused('plugin:opener|open_url', { url: 'https://github.com/' }));
     add('page cannot call an unknown command', await refused('definitely_not_a_command', {}));
 
+    // The compute commands refuse malformed requests with a typed error and tolerate cancelling an unknown job.
+    const badAlign = await invoke('align_pair', { jobId: 1, request: { a: 'A' }, onProgress: new Channel() }).then(() => 'accepted', (e: unknown) => (typeof e === 'object' && e !== null && 'code' in e ? String(e.code) : 'rejected'));
+    add('align_pair rejects a malformed request with code invalid-argument', badAlign === 'invalid-argument', badAlign);
+    add('cancel_job on an unknown job id is harmless', await invoke('cancel_job', { jobId: 424242 }).then(() => true, () => false));
     add('no CSP violations', violations.length === 0, violations.join('; '));
   } catch (e) {
     add('smoke check itself did not crash', false, e instanceof Error ? e.message : String(e));

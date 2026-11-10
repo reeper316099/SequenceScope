@@ -109,6 +109,21 @@ pub fn assert_within_cap(m: usize, n: usize, affine: bool) -> Result<(), BioErro
 
 /// Fills the DP tables (Eq. 1-3 in ALGORITHMS.md) and records which predecessors achieve each maximum.
 pub fn fill_matrix(a: &str, b: &str, mode: AlignMode, scoring: &CompiledScoring) -> Result<Dp, BioError> {
+    match fill_matrix_cancellable(a, b, mode, scoring, &mut |_| true)? {
+        Some(dp) => Ok(dp),
+        None => Err(BioError::new(BioErrorCode::InvalidArgument, "The fill was cancelled.")), // unreachable: the tick above never cancels
+    }
+}
+
+/// Like `fill_matrix`, but calls `tick(fraction)` after every row of the table (fraction = rows done / rows) and stops
+/// early with `Ok(None)` as soon as `tick` returns false. This is how long runs report progress and can be cancelled.
+pub fn fill_matrix_cancellable(
+    a: &str,
+    b: &str,
+    mode: AlignMode,
+    scoring: &CompiledScoring,
+    tick: &mut dyn FnMut(f64) -> bool,
+) -> Result<Option<Dp>, BioError> {
     assert_within_cap(
         a.chars().map(char::len_utf16).sum(),
         b.chars().map(char::len_utf16).sum(),
@@ -119,9 +134,9 @@ pub fn fill_matrix(a: &str, b: &str, mode: AlignMode, scoring: &CompiledScoring)
     // Encoding succeeded, so every letter is ASCII and the bytes are the letters.
     let (str_a, str_b) = (a.as_bytes().to_vec(), b.as_bytes().to_vec());
     Ok(if scoring.affine {
-        fill_affine(str_a, str_b, &codes_a, &codes_b, mode, scoring)
+        fill_affine(str_a, str_b, &codes_a, &codes_b, mode, scoring, tick)
     } else {
-        fill_linear(str_a, str_b, &codes_a, &codes_b, mode, scoring)
+        fill_linear(str_a, str_b, &codes_a, &codes_b, mode, scoring, tick)
     })
 }
 
@@ -133,7 +148,8 @@ fn fill_linear(
     codes_b: &[u8],
     mode: AlignMode,
     sc: &CompiledScoring,
-) -> Dp {
+    tick: &mut dyn FnMut(f64) -> bool,
+) -> Option<Dp> {
     let (m, n) = (codes_a.len(), codes_b.len());
     let w = n + 1;
     let k = sc.classes;
@@ -184,9 +200,12 @@ fn fill_linear(
                 | (if up == v { L_UP } else { 0 })
                 | (if left == v { L_LEFT } else { 0 });
         }
+        if !tick(i as f64 / m as f64) {
+            return None;
+        }
     }
     let score = if local { best } else { h[m * w + n] };
-    Dp {
+    Some(Dp {
         mode,
         str_a,
         str_b,
@@ -195,7 +214,7 @@ fn fill_linear(
         score,
         ends: if local { ends } else { vec![m * w + n] },
         tables: Tables::Linear { h, p },
-    }
+    })
 }
 
 /// Clamps a value at NEG so repeated penalties can never overflow i32.
@@ -211,7 +230,8 @@ fn fill_affine(
     codes_b: &[u8],
     mode: AlignMode,
     sc: &CompiledScoring,
-) -> Dp {
+    tick: &mut dyn FnMut(f64) -> bool,
+) -> Option<Dp> {
     let (m, n) = (codes_a.len(), codes_b.len());
     let w = n + 1;
     let k = sc.classes;
@@ -278,6 +298,9 @@ fn fill_affine(
             yy[idx] = clamp_neg(yv);
             p[idx] = mmask | (xmask << A_X_SHIFT) | (ymask << A_Y_SHIFT);
         }
+        if !tick(i as f64 / m as f64) {
+            return None;
+        }
     }
     let (score, end_list) = if local {
         (best, if best > 0 { ends } else { Vec::new() })
@@ -290,7 +313,7 @@ fn fill_affine(
             (0..3).filter(|&st| vals[st] == score).map(|st| last * 3 + st).collect(),
         )
     };
-    Dp {
+    Some(Dp {
         mode,
         str_a,
         str_b,
@@ -299,7 +322,7 @@ fn fill_affine(
         score,
         ends: end_list,
         tables: Tables::Affine { m: mm, x: xx, y: yy, p },
-    }
+    })
 }
 
 /// A predecessor option while walking back through the tables.
@@ -818,6 +841,34 @@ mod tests {
             assert_within_cap(5000, 5001, true).is_err(),
             "5001 x 5002 cells is over the cap"
         );
+    }
+
+    #[test]
+    fn the_cancellable_fill_reports_progress_per_row_and_stops_when_asked() {
+        let sc = dna(2, -3, aff(5, 1));
+        let mut fractions = Vec::new();
+        let done = fill_matrix_cancellable("ACGTACGT", "ACGTACGT", AlignMode::Global, &sc, &mut |f| {
+            fractions.push(f);
+            true
+        })
+        .expect("fill"); // test code
+        assert!(done.is_some());
+        assert_eq!(fractions.len(), 8);
+        assert_eq!(fractions.last(), Some(&1.0));
+        let mut rows_seen = 0;
+        let stopped = fill_matrix_cancellable(
+            "ACGTACGT",
+            "ACGTACGT",
+            AlignMode::Local,
+            &dna(2, -3, lin(4)),
+            &mut |_| {
+                rows_seen += 1;
+                rows_seen < 3
+            },
+        )
+        .expect("fill"); // test code
+        assert!(stopped.is_none(), "returning false from the tick cancels the fill");
+        assert_eq!(rows_seen, 3);
     }
 
     #[test]

@@ -12,7 +12,8 @@ import { parseFasta, writeFasta } from '../../src/bio/fasta';
 import { RAW_MATRICES } from '../../src/bio/matrices.data';
 import { alignAll, alignScoreOnly, fillMatrix, tracebackFirst } from '../../src/bio/pairwise';
 import type { Dp } from '../../src/bio/pairwise';
-import { createRng } from '../../src/bio/rng';
+import { createRng, deriveSeed } from '../../src/bio/rng';
+import { runShuffleTest, shuffleResidues } from '../../src/bio/shuffle';
 import type { Rng } from '../../src/bio/rng';
 import { compileScoring } from '../../src/bio/scoring';
 import type { Alphabet, AlignMode, GapModel, ScoringSpec } from '../../src/shared/types';
@@ -163,6 +164,28 @@ function pairCases(): PairCase[] {
   return cases;
 }
 
+interface ShuffleCase {
+  alphabet: Alphabet;
+  mode: AlignMode;
+  scoring: ScoringSpec;
+  a: string;
+  b: string;
+  shuffles: number;
+  seed: number;
+}
+
+/** Runs the TypeScript shuffle test for one case and records its complete summary (or typed error). */
+function shuffleExpected(c: ShuffleCase): unknown {
+  try {
+    const r = runShuffleTest({ a: c.a, b: c.b, mode: c.mode, scoring: compileScoring(c.scoring, c.alphabet), shuffles: c.shuffles, seed: c.seed });
+    if (r.cancelled) throw new Error('unexpected cancel');
+    return { ...c, expected: { realScore: r.realScore, scores: Array.from(r.scores), mean: r.mean, sd: r.sd, z: r.z, atLeastAsGood: r.atLeastAsGood, pValue: r.pValue } };
+  } catch (e) {
+    if (e instanceof BioError) return { ...c, expected: { error: { code: e.code, message: e.message } } };
+    throw e;
+  }
+}
+
 describe('generate parity fixtures from the TypeScript reference implementation', () => {
   it('matrices', () => {
     mkdirSync(OUT, { recursive: true });
@@ -176,6 +199,50 @@ describe('generate parity fixtures from the TypeScript reference implementation'
     const errors = cases.filter((c) => (expectedFor(c) as { error?: unknown }).error !== undefined).length;
     expect(errors).toBeGreaterThanOrEqual(10);
     console.log(`pairwise parity cases: ${cases.length} (${errors} typed-error cases)`);
+  });
+
+  it('rng + shuffle + shuffle test', () => {
+    const rng = createRng(20260303);
+    const seeds = [0, 1, 2, 7, 42, 12345, 99999, 4294967295, 2147483648, 3000000000];
+    for (let k = 0; k < 30; k++) seeds.push(rng.nextUint32());
+    const bounds = [1, 2, 3, 7, 10, 100, 65537, 2147483649, 4294967296];
+    const rngCases = seeds.map((seed) => ({
+      seed,
+      u32: (() => { const r = createRng(seed); return Array.from({ length: 30 }, () => r.nextUint32()); })(),
+      floats: (() => { const r = createRng(seed); return Array.from({ length: 10 }, () => r.nextFloat()); })(),
+      ints: bounds.map((bound) => { const r = createRng(seed); return { bound, values: Array.from({ length: 20 }, () => r.nextInt(bound)) }; }),
+      derived: [0, 1, 2, 3, 10, 1000, 4294967295].map((stream) => ({ stream, seed: deriveSeed(seed, stream) })),
+    }));
+    const shuffleCases = Array.from({ length: 150 }, () => {
+      const seed = rng.nextUint32();
+      const s = randomSeq(rng, 'ACGTN', between(rng, 0, 40));
+      return { seed, input: s, expected: shuffleResidues(createRng(seed), s) };
+    });
+    const testCases: unknown[] = [];
+    for (let k = 0; k < 70; k++) {
+      const alphabet: Alphabet = rng.nextInt(4) === 0 ? 'protein' : 'dna';
+      const letters = STANDARD[alphabet];
+      const a = randomSeq(rng, letters, between(rng, 5, 70));
+      const b = rng.nextInt(2) === 0 ? mutate(rng, a, letters, 0.3) : randomSeq(rng, letters, between(rng, 5, 70));
+      const gaps: GapModel = rng.nextInt(2) === 0 ? { kind: 'linear', gap: between(rng, 1, 8) } : { kind: 'affine', open: between(rng, 1, 12), extend: between(rng, 0, 4) };
+      const substitution = alphabet === 'dna' ? ({ kind: 'simple', match: between(rng, 1, 5), mismatch: between(rng, -4, 0) } as const) : ({ kind: 'matrix', name: 'BLOSUM62' } as const);
+      const scoring: ScoringSpec = { substitution, gaps };
+      const mode: AlignMode = rng.nextInt(2) === 0 ? 'global' : 'local';
+      const shuffles = between(rng, 1, 60);
+      const seed = rng.nextUint32();
+      testCases.push(shuffleExpected({ alphabet, mode, scoring, a, b, shuffles, seed }));
+    }
+    const dnaScoring: ScoringSpec = { substitution: { kind: 'simple', match: 2, mismatch: -3 }, gaps: { kind: 'affine', open: 5, extend: 2 } };
+    testCases.push(
+      shuffleExpected({ alphabet: 'dna', mode: 'local', scoring: dnaScoring, a: 'ACGT', b: 'ACGT', shuffles: 0, seed: 1 }),
+      shuffleExpected({ alphabet: 'dna', mode: 'local', scoring: dnaScoring, a: 'ACGT', b: 'ACGT', shuffles: 5001, seed: 1 }),
+      shuffleExpected({ alphabet: 'dna', mode: 'local', scoring: dnaScoring, a: 'AC#T', b: 'ACGT', shuffles: 5, seed: 1 }),
+      shuffleExpected({ alphabet: 'dna', mode: 'global', scoring: { substitution: { kind: 'simple', match: 1, mismatch: -1 }, gaps: { kind: 'linear', gap: 1 } }, a: 'AAAA', b: 'AAAA', shuffles: 10, seed: 3 }),
+      shuffleExpected({ alphabet: 'dna', mode: 'global', scoring: dnaScoring, a: '', b: '', shuffles: 3, seed: 9 }),
+    );
+    writeFileSync(path.join(OUT, 'rng-shuffle-ts.json'), JSON.stringify({ rngCases, shuffleCases, testCases }) + '\n');
+    console.log(`rng cases ${rngCases.length}, shuffle cases ${shuffleCases.length}, shuffle-test cases ${testCases.length}`);
+    expect(testCases.length).toBeGreaterThan(70);
   });
 
   it('fasta + alphabet helpers', () => {

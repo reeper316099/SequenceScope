@@ -14,4 +14,5 @@ sha2 = "=0.11.1" # checksums of the embedded substitution-matrix files
 
 [dev-dependencies]
 proptest = "=1.12.0" # property tests (the Rust counterpart of fast-check)
-serde_json = "=1.0.154" # reads the Biopython and TypeScript-parity fixtures
+# float_roundtrip: parse decimals exactly (the default reader can be off by 1 bit, which would blur "bit-identical" float checks)
+serde_json = { version = "=1.0.154", features = ["float_roundtrip"] } # reads the Biopython and TypeScript-parity fixtures

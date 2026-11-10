@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-align-pair"
+description = "Enables the align_pair command without any pre-configured scope."
+commands.allow = ["align_pair"]
+
+[[permission]]
+identifier = "deny-align-pair"
+description = "Denies the align_pair command without any pre-configured scope."
+commands.deny = ["align_pair"]

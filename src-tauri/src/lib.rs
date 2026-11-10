@@ -3,7 +3,11 @@
 
 mod allowlist;
 mod commands;
+mod compute;
+mod dto;
 mod fileio;
+mod frame;
+mod jobs;
 mod results;
 mod smoke;
 mod validate;
@@ -16,16 +20,13 @@ fn create_main_window(app: &tauri::App, smoke_mode: bool) -> tauri::Result<()> {
         .title("SequenceScope")
         .inner_size(1280.0, 800.0)
         .min_inner_size(1100.0, 720.0)
+        .initialization_script(smoke::init_script(smoke_mode))
         .on_navigation(allowlist::is_app_url);
     if smoke_mode {
         // Tried and failed on macOS: hidden, off-screen, and always-on-bottom windows (WebKit suspends the page, so the
         // self-check never runs). What works: a normal visible window that is NOT focused, in an app with no Dock icon.
         // It is on screen for a couple of seconds but never takes keyboard focus from what you are doing.
-        builder = builder
-            .visible(true)
-            .focused(false)
-            // Tells the page to run its self-check and report back (see src/tauri/smoke.ts).
-            .initialization_script("window.__SEQUENCESCOPE_SMOKE__ = true;");
+        builder = builder.visible(true).focused(false);
     }
     builder.build()?;
     Ok(())
@@ -38,12 +39,17 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .manage(jobs::Jobs::default())
         .invoke_handler(tauri::generate_handler![
             commands::open_file,
             commands::save_file,
             commands::open_external,
             commands::get_app_info,
             commands::copy_text,
+            compute::align_pair,
+            compute::shuffle_test,
+            compute::cancel_job,
+            compute::smoke_active_jobs,
             smoke::smoke_report
         ])
         .setup(move |app| {
