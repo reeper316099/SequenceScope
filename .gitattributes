@@ -1,0 +1,5 @@
+# Data files are compared by checksum and byte for byte, so git must never convert their line endings (Windows checkouts convert LF to CRLF
+# by default, which changes the SHA-256 of the substitution matrices and the sequence files). The CRLF test fixture stays CRLF.
+data/** -text
+examples/** -text
+tests/fixtures/** -text
