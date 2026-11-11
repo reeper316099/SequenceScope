@@ -26,6 +26,9 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          # macOS gets both Mac CPU targets so one universal app (Apple Silicon + Intel) can be built
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
       - name: Linux packages for the Tauri web view (WebKitGTK)
         if: runner.os == 'Linux'
@@ -42,13 +45,18 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - name: Build the installers (unsigned)
-        run: npx tauri build
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            npx tauri build --target universal-apple-darwin   # one app for Apple Silicon and Intel Macs
+          else
+            npx tauri build
+          fi
       - name: Create the release if it does not exist yet, then upload this system's installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "SequenceScope $GITHUB_REF_NAME" --generate-notes || gh release view "$GITHUB_REF_NAME" >/dev/null
-          find target/release/bundle -type f \( -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.AppImage' -o -name '*.deb' \) -print -exec gh release upload "$GITHUB_REF_NAME" {} --clobber \;
+          find target -path '*/release/bundle/*' -type f \( -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.AppImage' -o -name '*.deb' \) -print -exec gh release upload "$GITHUB_REF_NAME" {} --clobber \;
 
   checksums:
     needs: build

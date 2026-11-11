@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1 — macOS build for Intel Macs too
+
+The v0.2.0 macOS download was built for Apple Silicon only (`…_aarch64.dmg`) and would not start on Intel Macs. From 0.2.1 the macOS download is one
+universal app (`…_universal.dmg`). Nothing else changed.
+
 ## v0.2.0 — Rust core and Tauri shell (no change in behaviour)
 
 The app now runs on **Tauri** with a **Rust** core instead of Electron with TypeScript. Results are the same: the Rust code is checked
@@ -13,10 +18,10 @@ a logarithm within 2 units in the last place).
 - The application menu (File, Edit, View, Help, with the same shortcuts) is rebuilt natively. Not carried over: the Electron "Reload",
   "Zoom" and "Fullscreen" menu items.
 - The About page shows "Runtime / web view" instead of "Electron / Chromium".
-- Installers are built by `tauri build`: `.msi` and `-setup.exe` (Windows), `.dmg` (macOS, the build machine's CPU), `.AppImage` and `.deb`
+- Installers are built by `tauri build`: `.msi` and `-setup.exe` (Windows), `.dmg` (macOS; Apple Silicon only in 0.2.0, universal from 0.2.1), `.AppImage` and `.deb`
   (Linux). Still unsigned. Windows and Linux installers have not been run by the author.
 - Removed: Electron, the TypeScript algorithms and their tests (kept at the signed tag `ts-reference-v0.1.0`; their outputs live on as
-  test fixtures), the portable Windows build, the universal macOS build.
+  test fixtures), the portable Windows build.
 - Details of each step: `docs/rust-migration/`.
 
 ## v0.1.0 — first release
