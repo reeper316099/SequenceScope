@@ -1,6 +1,6 @@
 {
   "name": "sequencescope",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Interactive desktop lab for sequence alignment and distance-based phylogenetics (educational).",
   "author": {
     "name": "reeper316099",

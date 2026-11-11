@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased — Rust core and Tauri shell (no change in behaviour)
+## v0.2.0 — Rust core and Tauri shell (no change in behaviour)
 
 The app now runs on **Tauri** with a **Rust** core instead of Electron with TypeScript. Results are the same: the Rust code is checked
 against the old TypeScript outputs with exact comparisons (scores, tables, trees, floating-point numbers bit for bit; values computed with
-a logarithm within 2 units in the last place). The version number is unchanged until a release is decided.
+a logarithm within 2 units in the last place).
 
 - All calculations (alignment, shuffle test, distances, UPGMA/NJ, Newick, tree edits and comparison, bootstrap, progressive alignment,
   conservation, FASTA, exhaustive search) run in Rust. The page keeps only drawing and formatting.

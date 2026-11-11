@@ -1,6 +1,6 @@
 [package]
 name = "sequencescope"
-version = "0.1.0"
+version = "0.2.0"
 description = "SequenceScope desktop shell (Tauri): native dialogs, validated commands, locked-down webview"
 authors = ["reeper316099"]
 license = "MIT"

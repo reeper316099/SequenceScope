@@ -1,4 +1,4 @@
-# Releasing SequenceScope (v0.1.0 and later)
+# Releasing SequenceScope
 
 Installers are built by GitHub Actions (Tauri) when you push a tag that starts with `v`.
 
