@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "medium", "exit": 0, "rust_process_peak_mb": 102.1, "webcontent_peak_mb": 433.1, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "-189:3fbf76ce:a5c6af24:1000+", "medianMs": 58, "minMs": 52, "name": "medium: 1000 x 1000 protein BLOSUM62, affine, global", "reps": 5, "runsMs": [58, 54, 59, 52, 60]}]}}

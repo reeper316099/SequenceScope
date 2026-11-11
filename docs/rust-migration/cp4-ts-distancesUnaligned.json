@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "distancesUnaligned", "exit": 0, "rust_process_peak_mb": 102.2, "webcontent_peak_mb": 422.5, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "30:0e281da1:a6f38b15:d8c7d3f9", "medianMs": 834, "minMs": 824, "name": "distance matrix: 30 DNA sequences x 400, every pair aligned (435 alignments)", "reps": 3, "runsMs": [836, 824, 834]}]}}

@@ -1,6 +1,6 @@
 // Scoring panel: mode, gap model, substitution scores or matrix, presets, and plain-English explanations.
 import type { Alphabet, AlignMode, GapModel, ScoringSpec } from '../shared/types';
-import { getMatrix, listMatrices } from '../bio/matrices';
+import { getMatrix, listMatrices } from '../backend/api';
 import { el } from './dom';
 import { PRESETS, gapCostText } from './model';
 

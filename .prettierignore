@@ -6,5 +6,7 @@ tools/.pylibs/
 examples/
 tests/fixtures/
 coverage/
+target/
+src-tauri/
 *.md
 .github/

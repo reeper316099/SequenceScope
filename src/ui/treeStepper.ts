@@ -1,9 +1,9 @@
 // Step-through for UPGMA / neighbor-joining: shows, for each merge, the current matrix (or Q matrix), the chosen pair,
 // the formulas with the real numbers filled in, and the forest of clusters growing toward the final tree.
 import type { Tree, TreeNode } from '../shared/types';
-import type { NjJoinStep, NjStep } from '../bio/nj';
-import { writeNewick } from '../bio/newick';
-import type { UpgmaStep } from '../bio/upgma';
+import type { NjJoinStep, NjStep } from '../shared/results';
+import { writeNewickMany } from '../backend/api';
+import type { UpgmaStep } from '../shared/results';
 import { clear, el, prefersReducedMotion } from './dom';
 import { layoutRectangular } from './treeLayout';
 import { forestAfter } from './treeSteps';
@@ -105,17 +105,23 @@ export function createTreeStepper(): TreeStepper {
     });
     svg.setAttribute('width', String(W)); svg.setAttribute('height', String(y0));
     forest.append(svg);
-    const comps = clusters.filter((c) => c.node.children.length > 0).map((c) => `${label(c.id, n)} = ${writeNewick({ root: c.node }, { includeLengths: false, includeSupport: false }).slice(0, -1)}`);
-    legend.textContent = comps.join('   ');
+    // The cluster formulas are Newick text without lengths; they arrive a moment after the picture (a newer step replaces them).
+    const withKids = clusters.filter((c) => c.node.children.length > 0);
+    const mine = ++legendSeq;
+    legend.textContent = '';
+    void writeNewickMany(withKids.map((c) => ({ root: c.node })), { includeLengths: false, includeSupport: false }).then((texts) => {
+      if (mine === legendSeq) legend.textContent = withKids.map((c, i) => `${label(c.id, n)} = ${(texts[i] ?? '').slice(0, -1)}`).join('   ');
+    });
   };
 
+  let legendSeq = 0;
   const render = (): void => {
     clear(tables); clear(formulas);
     const hasRes = res !== null;
     for (const b of [toStart, back, play, fwd, toEnd]) b.disabled = !hasRes;
     play.hidden = reduced;
     play.textContent = timer ? '⏸ Pause' : '▶ Play';
-    if (!res) { status.textContent = 'Build a tree to step through it.'; clear(forest); legend.textContent = ''; return; }
+    if (!res) { legendSeq++; status.textContent = 'Build a tree to step through it.'; clear(forest); legend.textContent = ''; return; }
     const n = res.names.length;
     const total = res.steps.length;
     status.textContent = k === 0 ? `Start: ${n} separate taxa (${total} step${total === 1 ? '' : 's'} to a full tree).` : k === total ? `Step ${k} of ${total}: the tree is complete.` : `Step ${k} of ${total}`;

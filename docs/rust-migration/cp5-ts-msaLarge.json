@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "msaLarge", "exit": 0, "rust_process_peak_mb": 102.3, "webcontent_peak_mb": 538.4, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "398466:40x917:844f27b3:39", "medianMs": 7137, "minMs": 7014, "name": "MSA: 40 DNA x 800, affine, NJ guide", "reps": 3, "runsMs": [7229, 7137, 7014]}]}}

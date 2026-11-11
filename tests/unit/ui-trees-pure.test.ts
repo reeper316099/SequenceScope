@@ -1,44 +1,43 @@
 // DOM-free logic behind the Distances and Trees views: set analysis, layouts, keyboard navigation, step forests, table sorting.
-import { describe, expect, it } from 'vitest';
-import { distanceMatrixFromAligned } from '../../src/bio/distance';
-import { neighborJoining } from '../../src/bio/nj';
-import { parseNewick, writeNewick } from '../../src/bio/newick';
-import { preorder } from '../../src/bio/tree';
-import { upgma } from '../../src/bio/upgma';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { buildTreesFromRowsAsync, loadReferenceData, writeNewickAsync } from '../../src/backend/api';
+import { preorder } from '../../src/bio/treeAccess';
+import type { DistanceMatrix } from '../../src/shared/types';
 import { analyzeSet, sortOrder, uniquifyNames } from '../../src/ui/sequenceSet';
 import { cladeNodeKey, collapsibleKeys, layoutRadial, layoutRectangular, navigate } from '../../src/ui/treeLayout';
 import { forestAfter } from '../../src/ui/treeSteps';
-import { matrixOf } from '../helpers/trees';
+import { nw } from '../helpers/trees';
 
-const nw = (s: string) => parseNewick(s).tree;
+beforeAll(loadReferenceData);
+
 const none = new Set<string>();
 
 describe('analyzeSet', () => {
   const dna = (n: number, extra = ''): string => Array.from({ length: n }, (_, k) => `>s${k}\nACGTACGTACGTACGTACGT${extra}`).join('\n');
-  it('suggests "aligned" only when all rows have equal length AND contain gap characters', () => {
-    expect(analyzeSet('>a\nACGT-ACGTACGTACGTACG\n>b\nACGTTACGTACGTACGTACG\n>c\nACGTTACGTACGTACG-ACG', 'auto', 'auto')).toMatchObject({ suggestedMode: 'aligned', mode: 'aligned', blocking: null });
-    expect(analyzeSet(dna(4), 'auto', 'auto')).toMatchObject({ suggestedMode: 'unaligned', mode: 'unaligned', equalLength: true });
+  it('suggests "aligned" only when all rows have equal length AND contain gap characters', async () => {
+    expect(await analyzeSet('>a\nACGT-ACGTACGTACGTACG\n>b\nACGTTACGTACGTACGTACG\n>c\nACGTTACGTACGTACG-ACG', 'auto', 'auto')).toMatchObject({ suggestedMode: 'aligned', mode: 'aligned', blocking: null });
+    expect(await analyzeSet(dna(4), 'auto', 'auto')).toMatchObject({ suggestedMode: 'unaligned', mode: 'unaligned', equalLength: true });
   });
-  it('aligned mode with unequal lengths is blocked with a message naming the sequence', () => {
-    const a = analyzeSet('>a\nACGTACGTAC\n>b\nACGTACG\n>c\nACGTACGTAC', 'auto', 'aligned');
+  it('aligned mode with unequal lengths is blocked with a message naming the sequence', async () => {
+    const a = await analyzeSet('>a\nACGTACGTAC\n>b\nACGTACG\n>c\nACGTACGTAC', 'auto', 'aligned');
     expect(a.blocking).toContain('"b" has 7 columns');
   });
-  it('gaps in unaligned mode are reported as invalid characters (with positions), not dropped', () => {
-    const a = analyzeSet('>a\nACGTACGTAC-GTACGT\n>b\nACGTACGTACGGTACGT\n>c\nACGTACGTACGGTACGA', 'auto', 'unaligned');
+  it('gaps in unaligned mode are reported as invalid characters (with positions), not dropped', async () => {
+    const a = await analyzeSet('>a\nACGTACGTAC-GTACGT\n>b\nACGTACGTACGGTACGT\n>c\nACGTACGTACGGTACGA', 'auto', 'unaligned');
     expect(a.issues.some((i) => i.code === 'invalid-characters' && i.positions?.includes(11))).toBe(true);
     expect(a.blocking).toContain('Fix the problems');
   });
-  it('empty input, a single sequence, too many sequences, and duplicate names', () => {
-    expect(analyzeSet('', 'auto', 'auto').blocking).toContain('Load or paste');
-    expect(analyzeSet(dna(1), 'auto', 'auto').blocking).toContain('at least 2');
-    expect(analyzeSet(dna(101), 'auto', 'auto').blocking).toContain('At most 100');
-    const dup = analyzeSet('>x\nACGTACGTACGTACGTACGT\n>x\nACGTACGTACGTACGTACGA\n>y\nACGTACGTACGTACGTACGC', 'auto', 'auto');
+  it('empty input, a single sequence, too many sequences, and duplicate names', async () => {
+    expect((await analyzeSet('', 'auto', 'auto')).blocking).toContain('Load or paste');
+    expect((await analyzeSet(dna(1), 'auto', 'auto')).blocking).toContain('at least 2');
+    expect((await analyzeSet(dna(101), 'auto', 'auto')).blocking).toContain('At most 100');
+    const dup = await analyzeSet('>x\nACGTACGTACGTACGTACGT\n>x\nACGTACGTACGTACGTACGA\n>y\nACGTACGTACGTACGTACGC', 'auto', 'auto');
     expect(dup.duplicateNames).toBe(true);
     expect(dup.notes.join()).toContain('unique names');
-    expect(analyzeSet(dna(2), 'auto', 'auto').notes.join()).toContain('at least 3');
+    expect((await analyzeSet(dna(2), 'auto', 'auto')).notes.join()).toContain('at least 3');
   });
-  it('uniquifyNames only renames the second and later copies', () => {
-    const r = uniquifyNames(analyzeSet('>x\nACGT\n>x\nACGT\n>y\nACGT\n>x\nACGT', 'dna', 'auto').records);
+  it('uniquifyNames only renames the second and later copies', async () => {
+    const r = uniquifyNames((await analyzeSet('>x\nACGT\n>x\nACGT\n>y\nACGT\n>x\nACGT', 'dna', 'auto')).records);
     expect(r.map((s) => s.id)).toEqual(['x', 'x_2', 'y', 'x_3']);
   });
 });
@@ -111,24 +110,32 @@ describe('keyboard navigation', () => {
 });
 
 describe('step forests', () => {
-  const m = matrixOf(['a', 'b', 'c', 'd', 'e'], [[0, 5, 9, 9, 8], [5, 0, 10, 10, 9], [9, 10, 0, 8, 7], [9, 10, 8, 0, 3], [8, 9, 7, 3, 0]]);
-  it('k = 0 is just the leaves; the last step gives exactly the final tree (UPGMA and NJ)', () => {
-    for (const r of [upgma(m), neighborJoining(m)]) {
-      expect(forestAfter(r.steps, r.names, 0).clusters.map((c) => c.node.name)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  const names = ['a', 'b', 'c', 'd', 'e'];
+  const rows = [[0, 5, 9, 9, 8], [5, 0, 10, 10, 9], [9, 10, 0, 8, 7], [9, 10, 8, 0, 3], [8, 9, 7, 3, 0]];
+  it('k = 0 is just the leaves; the last step gives exactly the final tree (UPGMA and NJ)', async () => {
+    const built = await buildTreesFromRowsAsync(names, rows);
+    for (const r of [built.upgma, built.nj]) {
+      expect(forestAfter(r.steps, r.names, 0).clusters.map((c) => c.node.name)).toEqual(names);
       const last = forestAfter(r.steps, r.names, r.steps.length).clusters;
       expect(last).toHaveLength(1);
-      expect(writeNewick({ root: (last[0] as { node: typeof r.tree.root }).node })).toBe(writeNewick(r.tree));
+      expect(await writeNewickAsync({ root: (last[0] as { node: typeof r.tree.root }).node })).toBe(await writeNewickAsync(r.tree));
     }
   });
-  it('the cluster count shrinks by one per UPGMA step', () => {
-    const r = upgma(m);
+  it('the cluster count shrinks by one per UPGMA step', async () => {
+    const r = (await buildTreesFromRowsAsync(names, rows)).upgma;
     r.steps.forEach((_, k) => expect(forestAfter(r.steps, r.names, k).clusters).toHaveLength(5 - k));
   });
 });
 
 describe('sortOrder', () => {
+  /** A 3 x 3 matrix for the taxa b, a, c (distance values chosen by hand; the sorting does not depend on how they were made). */
+  const matrix = (): DistanceMatrix => ({
+    names: ['b', 'a', 'c'], n: 3, model: 'jc', gapPolicy: 'pairwise-deletion',
+    values: Float64Array.from([0, 0.13, 1.1, 0.13, 0, 1.2, 1.1, 1.2, 0]),
+    status: new Uint8Array(9), compared: new Uint32Array(9).fill(8),
+  });
   it('sorts by a column with unusable cells last, or by name', () => {
-    const m = distanceMatrixFromAligned(['b', 'a', 'c'], ['ACGTACGT', 'ACGAACGT', 'AAAAAAAA'], 'dna', 'jc', 'pairwise-deletion');
+    const m = matrix();
     expect(sortOrder(m, { by: 'name' }, 'asc')).toEqual([1, 0, 2]);
     expect(sortOrder(m, { by: 'name' }, 'desc')).toEqual([2, 0, 1]);
     const order = sortOrder(m, { by: 'column', col: 0 }, 'asc');

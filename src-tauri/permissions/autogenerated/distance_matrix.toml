@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-distance-matrix"
+description = "Enables the distance_matrix command without any pre-configured scope."
+commands.allow = ["distance_matrix"]
+
+[[permission]]
+identifier = "deny-distance-matrix"
+description = "Denies the distance_matrix command without any pre-configured scope."
+commands.deny = ["distance_matrix"]

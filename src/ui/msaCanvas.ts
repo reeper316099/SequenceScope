@@ -2,8 +2,8 @@
 // row pinned on top, residues coloured by the colour-blind-safe palette (letters are ALWAYS drawn), and a selectable column range.
 // The canvas only paints what is visible (it sits "sticky" inside a native scroll container), so large alignments stay fast.
 import type { Alphabet } from '../shared/types';
-import { conservation } from '../bio/conservation';
-import type { Conservation } from '../bio/conservation';
+import { conservationAsync } from '../backend/api';
+import type { Conservation } from '../shared/results';
 import { el } from './dom';
 import { residueClass } from './residueClass';
 import { onThemeChange, token } from './theme';
@@ -20,7 +20,8 @@ const MAX_PNG_PIXELS = 36_000_000;
 
 export interface MsaCanvas {
   root: HTMLElement;
-  setData(ids: readonly string[] | null, rows: readonly string[] | null, alphabet: Alphabet): void;
+  /** Shows an alignment; resolves once its conservation statistics have been computed and drawn. */
+  setData(ids: readonly string[] | null, rows: readonly string[] | null, alphabet: Alphabet): Promise<void>;
   setMetric(m: Metric): void;
   setCellWidth(px: number): void;
   /** 1-based inclusive column range, or null. */
@@ -44,6 +45,7 @@ export function createMsaCanvas(): MsaCanvas {
   let rows: readonly string[] = [];
   let alphabet: Alphabet = 'dna';
   let cons: Conservation | null = null;
+  let dataSeq = 0;
   let metric: Metric = 'identity';
   let cw = 12;
   let sel: { from: number; to: number } | null = null;
@@ -148,9 +150,12 @@ export function createMsaCanvas(): MsaCanvas {
 
   return {
     root,
-    setData(i, r, a) {
+    async setData(i, r, a) {
       ids = i ?? []; rows = r ?? []; alphabet = a; sel = null;
-      cons = rows.length > 0 ? conservation(rows, a) : null;
+      const mine = ++dataSeq;
+      const stats = rows.length > 0 ? await conservationAsync(rows, a) : null;
+      if (mine !== dataSeq) return; // newer data arrived while the statistics were being computed
+      cons = stats;
       scroller.scrollLeft = 0; scroller.scrollTop = 0;
       resize();
     },

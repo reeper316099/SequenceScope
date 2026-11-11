@@ -26,12 +26,6 @@ export type WorkerReply<R> =
   | { type: 'result'; value: R }
   | { type: 'error'; message: string; code?: string };
 
-/** Request/reply for the Phase 2 worker smoke test (doubles a number). */
-export interface PingRequest {
-  type: 'ping';
-  value: number;
-}
-
 // ---- IPC (renderer <-> main), exposed through the preload bridge as window.sequenceScope ----
 
 /** Kinds of file the open dialog can ask for; the main process owns the extension filter for each. */
@@ -64,8 +58,10 @@ export type OpenExternalResult = { ok: true } | { ok: false; message: string };
 export interface AppInfo {
   name: string;
   version: string;
-  electron: string;
-  chrome: string;
+  /** The runtime, e.g. "Tauri 2.12.5". */
+  runtime: string;
+  /** The system web view that shows the page. */
+  webview: string;
   platform: string;
 }
 
@@ -81,23 +77,14 @@ export interface SequenceScopeApi {
   copyText(text: string): Promise<CopyTextResult>;
 }
 
-/** IPC channel names (main registers handlers, preload invokes them). */
-export const IPC = {
-  openFile: 'sequencescope:open-file',
-  saveFile: 'sequencescope:save-file',
-  openExternal: 'sequencescope:open-external',
-  getAppInfo: 'sequencescope:get-app-info',
-  copyText: 'sequencescope:copy-text',
-} as const;
-
-/** Menu commands main may ask the renderer to perform (delivered as a DOM CustomEvent, see electron/main.ts). */
+/** Menu commands the app menu may ask the renderer to perform (delivered as a DOM CustomEvent, see src-tauri/src/menu.rs). */
 export const MENU_ACTIONS = [
   'open-fasta', 'open-newick', 'open-project', 'save-project', 'export', 'undo', 'redo',
   'toggle-dark', 'view-1', 'view-2', 'view-3', 'view-4', 'view-5', 'view-6', 'view-7',
 ] as const;
 export type MenuAction = (typeof MENU_ACTIONS)[number];
 
-/** Hard size cap for files opened through the native dialog (checked in the main process). */
+/** Hard size cap for files opened through the native dialog (checked in Rust). */
 export const MAX_OPEN_FILE_BYTES = 10 * 1024 * 1024;
 
 // ---- Bio domain types shared by src/bio, workers, UI, and project files ----
@@ -155,12 +142,45 @@ export interface AlignRequest {
   enumerateCap: number;
 }
 
+export interface AlignmentStats {
+  length: number; // alignment columns
+  identities: number; // columns with the same STANDARD residue in both rows
+  mismatches: number; // aligned residue pairs that are not identities
+  positives: number; // aligned non-identical pairs with a positive score (matrix scoring only meaningful)
+  gapColumns: number;
+  gapOpens: number; // number of gap runs
+  gapsInA: number; // gap characters in row A
+  gapsInB: number;
+  ambiguousColumns: number; // aligned pairs involving an ambiguity code (never counted as identity)
+  identityPct: number | null; // identities / length * 100 (null for an empty alignment)
+  similarityPct: number | null; // (identities + positives) / length * 100 (null if length 0)
+  alignedColumns: number; // columns without a gap
+}
+
+/** Cell inspection data for the details panel: the candidate values behind one DP cell and the move(s) chosen. */
+export type CellInfo =
+  | { kind: 'border'; i: number; j: number; value: number; note: string }
+  | { kind: 'linear'; i: number; j: number; s: number; diag: number; up: number; left: number; zeroFloor: boolean; value: number; chosen: ('diagonal' | 'up' | 'left')[] }
+  | {
+      kind: 'affine'; i: number; j: number; s: number;
+      /** M: best of the three states at (i-1,j-1) [+ fresh start for local], plus s. */
+      M: { fromM: number; fromX: number; fromY: number; startFresh: boolean; value: number; chosen: string[] };
+      /** X: gap column consuming a_i: open from M/Y, or extend X. */
+      X: { openFromM: number; extendX: number; openFromY: number; value: number; chosen: string[] };
+      /** Y: gap column consuming b_j: open from M/X, or extend Y. */
+      Y: { openFromM: number; openFromX: number; extendY: number; value: number; chosen: string[] };
+    };
+
 /** Worker result: the preferred alignment, co-optimal alignments (capped), and the DP tables for the matrix view. */
 export interface AlignResult {
   alignment: PairwiseAlignment;
   all: PairwiseAlignment[];
   capped: boolean;
   dp: DpSnapshot;
+  /** Identity, similarity and gap statistics of `alignment`. */
+  stats: AlignmentStats;
+  /** The match line of every alignment in `all` (same order). */
+  matchLines: string[];
 }
 
 /** Request to run the seeded shuffle significance test. */

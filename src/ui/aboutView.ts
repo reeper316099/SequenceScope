@@ -1,6 +1,5 @@
 // About / Limitations: conventions, citations, data sources and licenses, validation summary, caps, honest limits.
-import { listMatrices, getMatrix } from '../bio/matrices';
-import { MAX_DP_CELLS } from '../bio/pairwise';
+import { getMatrix, limits, listMatrices } from '../backend/api';
 import { callout, card } from './cards';
 import { INTERACTIVE_CELL_CAP } from './matrixCanvas';
 import { clear, el } from './dom';
@@ -25,7 +24,7 @@ export function createAboutView(): AppView {
     const ver = el('dl', 'kv');
     info.body.append(ver);
     void window.sequenceScope.getAppInfo().then((a) => {
-      ver.append(el('dt', undefined, 'Version'), el('dd', undefined, a.version), el('dt', undefined, 'Electron / Chromium'), el('dd', undefined, `${a.electron} / ${a.chrome}`), el('dt', undefined, 'Platform'), el('dd', undefined, a.platform));
+      ver.append(el('dt', undefined, 'Version'), el('dd', undefined, a.version), el('dt', undefined, 'Runtime / web view'), el('dd', undefined, `${a.runtime} / ${a.webview}`), el('dt', undefined, 'Platform'), el('dd', undefined, a.platform));
     });
     info.body.append(callout('warn', 'Educational use only. SequenceScope does not replace BLAST, MAFFT, Clustal Omega, MUSCLE, or maximum-likelihood/Bayesian phylogenetics programs (IQ-TREE, RAxML, MrBayes). The app makes no network requests; all computation happens on your computer.'));
 
@@ -74,7 +73,7 @@ export function createAboutView(): AppView {
 
     const caps = card('Limits and why');
     caps.body.append(ul([
-      `Pairwise alignment is limited to ${MAX_DP_CELLS.toLocaleString('en-US')} matrix cells (two sequences of 5,000 residues) so the tables fit in memory (about 125 MB linear, 350 MB affine).`,
+      `Pairwise alignment is limited to ${limits().maxDpCells.toLocaleString('en-US')} matrix cells (two sequences of 5,000 residues) so the tables fit in memory (about 125 MB linear, 350 MB affine).`,
       `The matrix is drawn cell by cell and can be stepped through up to ${INTERACTIVE_CELL_CAP.toLocaleString('en-US')} cells (about 500 × 500); larger matrices show a zoomable overview.`,
       'The shuffle test is limited to 5000 shuffles and about two billion cell updates per run so it finishes in seconds.',
       'Scores are whole numbers; match/mismatch within ±1000, gap penalties 0–10000.',

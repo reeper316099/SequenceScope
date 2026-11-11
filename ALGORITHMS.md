@@ -60,7 +60,7 @@ Y[i][j] = max( max(M,X)[i][j-1] − open,  Y[i][j-1] − extend )
 2. *"Adding a constant to gap penalties never improves the score"* is true when the constant is non-negative and added to the **penalty** (open and extend both become costlier). Precisely: the optimum is non-increasing in each penalty.
 3. *Local score ≥ global score* holds for any scoring (a global alignment is one candidate local alignment) **provided** end gaps are penalised in global mode, which is our convention.
 4. *Shuffle z-score:* local-alignment scores follow an extreme-value (Gumbel-like) distribution, not a normal one. The **empirical p-value is the primary number**; the z-score is shown as a rough guide with that caveat.
-5. TypeScript 7.0.x is the npm "latest", but typescript-eslint 8.72.1 declares `typescript >=4.8.4 <6.1.0`; we pin **TypeScript 6.0.3**.
+5. TypeScript 7.0.x is the npm "latest", but typescript-eslint 8.72.1 declares `typescript >=4.8.4 <6.1.0`; we pin **TypeScript 6.0.3**. (TypeScript now only draws the interface; the algorithms are in Rust.)
 
 ## 6. Distances
 - p-distance: `p = D / L` where `L` = compared sites. **Gap policy (user option):** *pairwise deletion* (default: skip columns where either sequence has a gap) or *gaps as differences*. If `L = 0` → distance "undefined (no comparable sites)", never NaN.
@@ -87,7 +87,7 @@ With `n` taxa and `r_i = Σ_k d(i,k)`:
 - **Unrooted RF = |S₁ Δ S₂|** (symmetric difference of non-trivial splits). Some tools report half of this; the UI states which one it uses. ◻
 
 ## 10. Bootstrap (aligned input only)
-Resample alignment **columns** with replacement (same number), recompute distances with the same model, rebuild the tree, count how often each reference-tree split appears. Support = `count / replicates · 100`. It measures **stability**, not probability of truth. It needs columns, which pairwise distances alone don't have. Reproducibility: replicate `r` uses its own PRNG stream derived from `(seed, r)`, so results don't depend on worker count. A replicate in which some pair has no comparable sites is recorded and counted, not hidden. ◻
+Resample alignment **columns** with replacement (same number), recompute distances with the same model, rebuild the tree, count how often each reference-tree split appears. Support = `count / replicates · 100`. It measures **stability**, not probability of truth. It needs columns, which pairwise distances alone don't have. Reproducibility: replicate `r` uses its own PRNG stream derived from `(seed, r)`, so results don't depend on the number of threads. A replicate in which some pair has no comparable sites is recorded and counted, not hidden. ◻
 
 ## 11. Progressive MSA (simplified Feng–Doolittle / ClustalW style) — design; see section 18 for the final, measured version
 Pairwise distances → guide tree (UPGMA or NJ) → align in tree order with profile–profile DP. Column score = mean of `s(x,y)` over residue–residue pairs between the two columns (gap-containing pairs contribute 0); gap penalties applied per profile column, unscaled. "Once a gap, always a gap." Heuristic: no optimality guarantee; the real fraction of tiny cases where it reaches the brute-force optimum will be reported. ◻
@@ -117,7 +117,7 @@ Shuffle one sequence N times (composition preserved, seeded PRNG), re-align, the
 - **Newick conventions as built:** unquoted underscores are kept; a numeric unquoted internal label is read as support; a quoted numeric label stays a label; only the first tree of a multi-tree file is used; nesting deeper than 3000 levels is refused.
 
 ## 16. Bootstrap as built
-Replicate r draws its columns from its own stream `deriveSeed(seed, r)`; `bootstrapRange` computes any slice and `mergeBootstrap` adds slices, so supports are identical for 1, 2, 3 or 7 workers in any order (tested). Replicates whose resampled matrix has saturated or undefined pairs are counted as FAILED and as not containing any split (support is always count / total replicates); the number of failures is reported. Caps: 100 sequences, 50,000 columns, 1000 replicates, 5e9 column comparisons.
+Replicate r draws its columns from its own stream `deriveSeed(seed, r)`; the core can compute any slice of replicates and add slices, so supports are identical for 1, 2, 3 or 7 threads in any order (tested; the app uses up to 8 threads). Replicates whose resampled matrix has saturated or undefined pairs are counted as FAILED and as not containing any split (support is always count / total replicates); the number of failures is reported. Caps: 100 sequences, 50,000 columns, 1000 replicates, 5e9 column comparisons.
 
 ## 17. Caps (Milestone B)
 100 sequences per set; pairwise-alignment distances limited to 1.5e9 cell updates in total (every pair aligned globally); bootstrap as above.
@@ -135,3 +135,11 @@ Replicate r draws its columns from its own stream `deriveSeed(seed, r)`; `bootst
   - **Versus MAFFT 7.526** (derived alignments stored in `examples/`): 100.00 % of MAFFT's aligned residue pairs are also aligned by our alignment on the 13 alpha-globins, and 98.75 % on the 10 CYTB sequences. This agreement is high because these sets are closely related and gap-poor; it says nothing about hard cases.
 - **Speed and caps (plain Node, M-series Mac):** up to 50 sequences of up to 3,000 residues; the total pairwise work cap (1.5e9 cell updates) is the binding limit. Measured protein runs: 10 x 300 in 0.1 s, 20 x 500 in 0.9 s, 30 x 1000 in 7.6 s (566 MB peak RSS), 50 x 1000 in 20.3 s, 30 x 1500 in 17.1 s (934 MB). 50 x 1500 is refused with a typed error.
 - **Conservation:** per-column identity (most common residue / all sequences), Shannon entropy over non-gap residues, conservation = (1 - H/Hmax) x (1 - gaps/n), and a consensus rule ('-' if more than half are gaps; else the most common residue, ties alphabetical, uppercase if identity >= 0.5, otherwise '.').
+
+## 19. Where the code lives now (Rust port)
+All algorithms above are implemented in `crates/sequencescope-core/src/` (one file per topic: `pairwise`, `scoring`, `matrices`, `alphabet`, `fasta`,
+`distance`, `upgma`, `nj`, `tree`, `newick`, `treecompare`, `bootstrap`, `shuffle`, `rng`, `msa`, `conservation`, `alignstats`, `verify`). They were first written in
+TypeScript (tag `ts-reference-v0.1.0`) and ported with the same conventions: the same gap-cost formula, the same tie order, the same PRNG, the same
+number formatting. The Rust tests replay the TypeScript outputs from `tests/fixtures/parity/` and require identical results; where a statement above
+names a TypeScript function, read the Rust function of the same name in snake_case. Two deliberate differences, both stricter in Rust: FASTA line
+widths must be whole numbers from 1 to 10,000,000, and the sum-of-pairs scorer refuses rows of unequal length with a typed error.

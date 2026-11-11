@@ -1,7 +1,7 @@
 // Loads the bundled example sets through app:// (or the dev server). Everything is validated with zod.
 import { exampleIndexSchema, exampleMetaSchema } from '../shared/schemas';
 import type { ExampleIndex, ExampleMeta } from '../shared/schemas';
-import { parseFasta } from '../bio/fasta';
+import { parseFastaAsync } from '../backend/api';
 import type { Sequence } from '../shared/types';
 
 export interface LoadedSet {
@@ -26,7 +26,7 @@ export async function loadExampleSet(id: string): Promise<LoadedSet> {
   const meta = exampleMetaSchema.parse(await getJson(`${id}/metadata.json`));
   const r = await fetch(`/examples/${id}/${meta.fasta_file}`);
   if (!r.ok) throw new Error(`Could not load the sequences of ${id}.`);
-  const parsed = parseFasta(await r.text(), { alphabet: meta.molecule });
+  const parsed = await parseFastaAsync(await r.text(), { alphabet: meta.molecule });
   if (parsed.issues.some((i) => i.severity === 'error')) throw new Error(`The bundled example ${id} failed validation: ${parsed.issues.map((i) => i.message).join(' ')}`);
   return { meta, records: parsed.records };
 }

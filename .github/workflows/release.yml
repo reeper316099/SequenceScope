@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a tag like v0.1.0 builds UNSIGNED installers on Linux, Windows, and macOS and publishes them to that tag's GitHub Release.
+# Pushing a tag like v0.2.0 builds UNSIGNED installers with Tauri on Linux, Windows, and macOS and publishes them to that tag's GitHub Release.
 on:
   push:
     tags: ['v*']
@@ -15,26 +15,40 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Tag must match package.json version
-        shell: bash
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux packages for the Tauri web view (WebKitGTK)
+        if: runner.os == 'Linux'
         run: |
-          V="$(node -p "require('./package.json').version")"
-          if [ "v$V" != "$GITHUB_REF_NAME" ]; then echo "Tag $GITHUB_REF_NAME does not match package.json version $V"; exit 1; fi
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Tag must match the app version (package.json, tauri.conf.json, Cargo.toml)
+        run: |
+          P="$(node -p "require('./package.json').version")"
+          T="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          C="$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
+          echo "package.json $P, tauri.conf.json $T, src-tauri/Cargo.toml $C, tag $GITHUB_REF_NAME"
+          if [ "v$P" != "$GITHUB_REF_NAME" ] || [ "$P" != "$T" ] || [ "$P" != "$C" ]; then echo "Versions and tag disagree"; exit 1; fi
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run build
-      - name: Package and publish installers
-        run: npx electron-builder --publish always
+      - name: Build the installers (unsigned)
+        run: npx tauri build
+      - name: Create the release if it does not exist yet, then upload this system's installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "SequenceScope $GITHUB_REF_NAME" --generate-notes || gh release view "$GITHUB_REF_NAME" >/dev/null
+          find target/release/bundle -type f \( -name '*.dmg' -o -name '*.msi' -o -name '*-setup.exe' -o -name '*.AppImage' -o -name '*.deb' \) -print -exec gh release upload "$GITHUB_REF_NAME" {} --clobber \;
 
   checksums:
     needs: build
@@ -48,7 +62,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir assets && cd assets
-          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.exe' --pattern '*.dmg' --pattern '*.AppImage' --pattern '*.deb'
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.exe' --pattern '*.msi' --pattern '*.dmg' --pattern '*.AppImage' --pattern '*.deb'
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$GITHUB_REF_NAME" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber

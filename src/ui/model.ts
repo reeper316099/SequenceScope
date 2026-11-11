@@ -1,9 +1,8 @@
 // Pure (DOM-free) logic behind the Align view: input analysis, alphabet resolution, scoring presets and wording.
 import type { Alphabet, AlphabetChoice, GapModel, ScoringSpec } from '../shared/types';
-import { detectAlphabet } from '../bio/alphabet';
-import type { Detection } from '../bio/alphabet';
-import { parseFasta } from '../bio/fasta';
-import type { FastaIssue } from '../bio/fasta';
+import { detectAlphabetAsync, parseFastaAsync } from '../backend/api';
+import type { Detection } from '../shared/results';
+import type { FastaIssue } from '../shared/results';
 
 export interface AnalyzedSequence {
   id: string;
@@ -19,8 +18,8 @@ export interface AnalyzedSequence {
 }
 
 /** Parses and validates what the user typed or pasted (raw residues or FASTA). Never throws. */
-export function analyzeSequenceText(text: string, choice: AlphabetChoice): AnalyzedSequence {
-  const parsed = parseFasta(text, { alphabet: choice });
+export async function analyzeSequenceText(text: string, choice: AlphabetChoice): Promise<AnalyzedSequence> {
+  const parsed = await parseFastaAsync(text, { alphabet: choice });
   const first = parsed.records[0];
   const noRecords = parsed.issues.find((i) => i.code === 'no-records');
   if (first === undefined) {
@@ -33,7 +32,7 @@ export function analyzeSequenceText(text: string, choice: AlphabetChoice): Analy
     issues.push({ severity: 'warning', code: 'duplicate-id', recordIndex: null, recordId: null, message: `${parsed.records.length} FASTA records were found; only the first ("${first.id}") is used here. Use the Distances view for sets.` });
   }
   const undetected = issues.some((i) => i.code === 'undetected-alphabet');
-  const detection = choice === 'auto' ? detectAlphabet(first.residues) : null;
+  const detection = choice === 'auto' ? await detectAlphabetAsync(first.residues) : null;
   return {
     id: first.id,
     residues: first.residues,
@@ -44,6 +43,11 @@ export function analyzeSequenceText(text: string, choice: AlphabetChoice): Analy
     empty: first.residues === '',
     hasError: issues.some((i) => i.severity === 'error'),
   };
+}
+
+/** What analyzeSequenceText returns for an empty box (available synchronously, for initial state). */
+export function emptyAnalysis(): AnalyzedSequence {
+  return { id: '', residues: '', alphabet: 'unknown', detection: null, issues: [], recordCount: 0, empty: true, hasError: false };
 }
 
 export type PairCheck = { ok: true; alphabet: Alphabet } | { ok: false; message: string };

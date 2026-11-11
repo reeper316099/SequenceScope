@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "largestDnaLinear", "exit": 0, "rust_process_peak_mb": 102.6, "webcontent_peak_mb": 749.2, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "-2990:7de226f5:e541d3f0:1000+", "medianMs": 271, "minMs": 256, "name": "largest: 5000 x 5000 DNA, linear, global", "reps": 3, "runsMs": [271, 271, 256]}]}}

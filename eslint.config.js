@@ -3,13 +3,13 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['out/**', 'dist/**', 'release/**', 'node_modules/**', 'tools/.pylibs/**', 'coverage/**', 'tools/**', 'eslint.config.js'] },
+  { ignores: ['out/**', 'dist/**', 'release/**', 'node_modules/**', 'tools/.pylibs/**', 'coverage/**', 'target/**', 'src-tauri/**', 'tools/**', 'eslint.config.js'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
       parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.renderer.json', './tsconfig.worker.json', './tsconfig.test.json'],
+        project: ['./tsconfig.node.json', './tsconfig.renderer.json', './tsconfig.test.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

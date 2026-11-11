@@ -1,0 +1,37 @@
+{
+  "measuredOn": "2026-11-10",
+  "platform": "darwin",
+  "arch": "arm64",
+  "results": [
+    {
+      "scenario": "pairwise alignment 5000 x 5000 protein, affine (largest allowed)",
+      "seconds": 1.35,
+      "longTasks": 1,
+      "longestTaskMs": 200
+    },
+    {
+      "scenario": "shuffle test, 1000 shuffles of 300 x 300 DNA (local, affine)",
+      "seconds": 0.24,
+      "longTasks": 0,
+      "longestTaskMs": 0
+    },
+    {
+      "scenario": "bootstrap, 100 replicates, 10 x 1144 DNA alignment (NJ)",
+      "seconds": 0.07,
+      "longTasks": 0,
+      "longestTaskMs": 0
+    },
+    {
+      "scenario": "bootstrap, 100 replicates, 50 x 3000 DNA alignment (NJ)",
+      "seconds": 0.18,
+      "longTasks": 0,
+      "longestTaskMs": 0
+    },
+    {
+      "scenario": "progressive MSA, 50 sequences x 1000 residues (protein, affine)",
+      "seconds": 9.32,
+      "longTasks": 0,
+      "longestTaskMs": 0
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+small: 200 x 200 DNA, affine, global | runs ms [6.5, 5.5, 4.9, 4.5, 4.2, 4.2, 3.9] | min 3.9 | median 4.5 | checksum -72:7ee73c5c:be8f3aa5:1000+
+medium: 1000 x 1000 protein BLOSUM62, affine, global | runs ms [13.6, 10.8, 10.2, 9.6, 9.6] | min 9.6 | median 10.2 | checksum -189:3fbf76ce:a5c6af24:1000+
+largest: 5000 x 5000 DNA, linear, global | runs ms [79.5, 72.7, 71.7] | min 71.7 | median 72.7 | checksum -2990:7de226f5:e541d3f0:1000+
+largest: 5000 x 5000 protein BLOSUM62, affine, global | runs ms [235.6, 175.7, 175.7] | min 175.7 | median 175.7 | checksum -775:f81e398d:5b077e20:1000+
+shuffle test: 1000 shuffles of 300 x 300 DNA, local, affine | runs ms [386.6, 385.3, 385.1] | min 385.1 | median 385.3 | checksum 17:a4385cf3:403225604189374c:400342bd8d555279:3fe745d1745d1746
+distance matrix: 30 DNA sequences x 400, every pair aligned (435 alignments) | runs ms [467.2, 459.5, 466.1] | min 459.5 | median 466.1 | checksum 30:0e281da1:a6f38b15:d8c7d3f9
+bootstrap: 100 replicates, 10 x 1144 DNA, NJ (Rust, 1 thread) | runs ms [8.8, 8.6, 8.8] | min 8.6 | median 8.8 | checksum 7:c41b5312:0:100
+bootstrap: 100 replicates, 10 x 1144 DNA, NJ (Rust, 8 threads) | runs ms [3.4, 3.4, 3.4] | min 3.4 | median 3.4 | checksum 7:c41b5312:0:100
+bootstrap: 100 replicates, 50 x 3000 DNA, NJ (Rust, 1 thread) | runs ms [492.6, 487.1, 484.5] | min 484.5 | median 487.1 | checksum 47:b0ba8717:0:100
+bootstrap: 100 replicates, 50 x 3000 DNA, NJ (Rust, 8 threads) | runs ms [113.1, 118.0, 114.1] | min 113.1 | median 114.1 | checksum 47:b0ba8717:0:100

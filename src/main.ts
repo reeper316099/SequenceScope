@@ -3,6 +3,8 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import { MENU_ACTIONS } from './shared/types';
+import { loadReferenceData } from './backend/api';
+import { installTauriBridge } from './tauri/bridge';
 import type { MenuAction, SequenceScopeApi } from './shared/types';
 import { createAboutView } from './ui/aboutView';
 import { createAlignView } from './ui/alignView';
@@ -102,7 +104,7 @@ function main(): void {
   const saveProject = async (): Promise<void> => {
     const info = await window.sequenceScope.getAppInfo();
     const st = store.state;
-    const ts = trees.getState();
+    const ts = await trees.getState();
     const text = serializeProject({
       app: 'SequenceScope', formatVersion: PROJECT_FORMAT_VERSION, appVersion: info.version, savedAt: new Date().toISOString(), align: align.getInputs(),
       msa: msa.getState(),
@@ -122,7 +124,7 @@ function main(): void {
     if (t) {
       store.update({ alphabetChoice: t.alphabet, model: t.model, gapPolicy: t.gapPolicy, presetId: t.presetId });
       distances.loadText(t.text, t.mode);
-      trees.setState({ method: t.method, seed: t.seed, replicates: t.replicates, importedNewick: t.importedNewick });
+      await trees.setState({ method: t.method, seed: t.seed, replicates: t.replicates, importedNewick: t.importedNewick });
     }
     if (p.project.msa) msa.setState(p.project.msa);
     toast(`Opened project ${r.name}.`);
@@ -146,4 +148,9 @@ function main(): void {
   });
 }
 
-main();
+installTauriBridge(); // Tauri only: provides window.sequenceScope before the UI uses it (no-op under Electron)
+// The limits and substitution matrices come from the calculation engine (Rust in the Tauri app); load them before the UI is built.
+void loadReferenceData().then(main).catch((e: unknown) => {
+  const message = e instanceof Error ? e.message : String(e);
+  document.getElementById('app')?.append(el('p', undefined, `SequenceScope could not start: ${message}`));
+});

@@ -1,6 +1,6 @@
 // Statistics cards + the standing honesty note about what these numbers mean.
 import type { PairwiseAlignment } from '../shared/types';
-import type { AlignmentStats } from '../bio/alignstats';
+import type { AlignmentStats } from '../shared/types';
 import { callout, statTile } from './cards';
 import { clear, el } from './dom';
 

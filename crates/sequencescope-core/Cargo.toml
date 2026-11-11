@@ -1,0 +1,18 @@
+[package]
+name = "sequencescope-core"
+version = "0.1.0"
+description = "SequenceScope algorithms (sequence alignment, FASTA, substitution matrices); no UI code"
+authors = ["reeper316099"]
+license = "MIT"
+repository = "https://github.com/reeper316099/SequenceScope"
+edition = "2024"
+rust-version = "1.90"
+
+# Exact pins (=) on purpose: upgrades are a deliberate decision.
+[dependencies]
+sha2 = "=0.11.1" # checksums of the embedded substitution-matrix files
+
+[dev-dependencies]
+proptest = "=1.12.0" # property tests (the Rust counterpart of fast-check)
+# float_roundtrip: parse decimals exactly (the default reader can be off by 1 bit, which would blur "bit-identical" float checks)
+serde_json = { version = "=1.0.154", features = ["float_roundtrip"] } # reads the Biopython and TypeScript-parity fixtures

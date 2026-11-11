@@ -1,0 +1,1 @@
+{"backend": "ts", "only": "largestProteinAffine", "exit": 0, "rust_process_peak_mb": 102.7, "webcontent_peak_mb": 899.8, "bench": {"backend": "ts", "scenarios": [{"backend": "ts", "checksum": "-775:f81e398d:5b077e20:1000+", "medianMs": 539, "minMs": 522, "name": "largest: 5000 x 5000 protein BLOSUM62, affine, global", "reps": 3, "runsMs": [539, 563, 522]}]}}

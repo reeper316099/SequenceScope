@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.0 — Rust core and Tauri shell (no change in behaviour)
+
+The app now runs on **Tauri** with a **Rust** core instead of Electron with TypeScript. Results are the same: the Rust code is checked
+against the old TypeScript outputs with exact comparisons (scores, tables, trees, floating-point numbers bit for bit; values computed with
+a logarithm within 2 units in the last place).
+
+- All calculations (alignment, shuffle test, distances, UPGMA/NJ, Newick, tree edits and comparison, bootstrap, progressive alignment,
+  conservation, FASTA, exhaustive search) run in Rust. The page keeps only drawing and formatting.
+- A stricter security model (15 permissioned commands, no Web Workers, no Node in the page),
+  and faster results (for example a 50 × 3000 bootstrap went from 2.35 s to 0.18 s; the exhaustive search in the Learn view from 2 s to 0.5 s).
+- The application menu (File, Edit, View, Help, with the same shortcuts) is rebuilt natively. Not carried over: the Electron "Reload",
+  "Zoom" and "Fullscreen" menu items.
+- The About page shows "Runtime / web view" instead of "Electron / Chromium".
+- Installers are built by `tauri build`: `.msi` and `-setup.exe` (Windows), `.dmg` (macOS, the build machine's CPU), `.AppImage` and `.deb`
+  (Linux). Still unsigned. Windows and Linux installers have not been run by the author.
+- Removed: Electron, the TypeScript algorithms and their tests (kept at the signed tag `ts-reference-v0.1.0`; their outputs live on as
+  test fixtures), the portable Windows build, the universal macOS build.
+- Details of each step: `docs/rust-migration/`.
+
 ## v0.1.0 — first release
 
 SequenceScope is a desktop teaching lab for comparing biological sequences and building evolutionary trees. Everything is
@@ -13,7 +32,7 @@ Biopython/SciPy. It runs fully offline.
 - **Learn view.** Plain-English explanations with the current numbers plugged in: the recurrences in MathML, an editable worked example, an interactive correction/saturation plot, a live example where UPGMA's clock assumption misleads, and how progressive alignment works and where it fails.
 - **Honest by design.** Every raw score, identity, bootstrap value, and tree comes with a note on what it does and does not mean. All randomness is seeded and the seed is shown and saved.
 - **Projects and exports.** Save/open project files (validated, version-checked), undo/redo, dark mode, native file dialogs.
-- **Secure Electron shell.** Sandboxed renderer, context isolation, strict content-security-policy, no network access, allowlisted external links, size- and type-checked file opening.
+- **Secure shell.** Sandboxed renderer, strict content-security-policy, no network access, allowlisted external links, size- and type-checked file opening.
 
 ### Known limits
 - Installers are **unsigned** (SmartScreen and Gatekeeper will warn; see docs/RELEASING.md).

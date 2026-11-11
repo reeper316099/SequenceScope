@@ -6,6 +6,7 @@ Do this on a machine that did NOT build the app, with the downloaded installer. 
 - [ ] Installer opens; after the OS warning (see RELEASING.md) the app starts; the window title is "SequenceScope".
 - [ ] The app icon (violet-to-cyan square with two bars and a small tree) shows in the dock/taskbar and in the installer.
 - [ ] Turn Wi-Fi off and restart the app: everything below still works (the app never needs a network).
+- [ ] The menu bar shows File, Edit, View, Help (on macOS also the app menu); File ▸ Open FASTA… (Ctrl/Cmd+O), Save Project… (Ctrl/Cmd+S), Export… (Ctrl/Cmd+E) and View ▸ Align … About (Ctrl/Cmd+1…7) work. Copy and paste work inside the text boxes.
 
 **Align (view 1)**
 - [ ] Pick the example pair "…unrelated…": a score appears, the matrix heatmap draws, the alignment shows letters in colour.

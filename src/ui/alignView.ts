@@ -1,11 +1,10 @@
 // The Align view (Milestone A): ties inputs, scoring, worker, matrix, stepper, alignment, stats, significance together.
-import { alignmentStats } from '../bio/alignstats';
-import { assertWithinCap, dpFromSnapshot, MAX_ENUMERATED_ALIGNMENTS } from '../bio/pairwise';
-import type { Dp } from '../bio/pairwise';
-import { compileScoring } from '../bio/scoring';
-import type { CompiledScoring } from '../bio/scoring';
+import { alignPrecheck, limits, makeDpView } from '../backend/api';
+import type { DpView } from '../backend/api';
 import { alignmentToClustal, alignmentToFasta, matrixToCsv } from '../io/export';
 import type { ProjectFile } from '../io/project';
+import { createPairwiseWorker } from '../backend';
+import type { JobWorker } from '../backend';
 import type { AlignRequest, AlignResult, AlphabetChoice, AlignMode, MenuAction, PairwiseAlignment, ScoringSpec, WorkerReply, Alphabet } from '../shared/types';
 import { callout, card, toast } from './cards';
 import { createDetailsPanel } from './detailsPanel';
@@ -17,7 +16,7 @@ import { createAlignmentView } from './alignmentView';
 import { History } from './history';
 import { createMatrixCanvas, INTERACTIVE_CELL_CAP } from './matrixCanvas';
 import { pathCells } from './matrixGeometry';
-import { analyzeSequenceText, checkPair, defaultPreset, describeScoring } from './model';
+import { analyzeSequenceText, checkPair, defaultPreset, describeScoring, emptyAnalysis } from './model';
 import type { AnalyzedSequence } from './model';
 import { createScoringPanel } from './scoringPanel';
 import type { ScoringState } from './scoringPanel';
@@ -51,13 +50,13 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   const defaults = defaultPreset('dna');
   let inputs: Inputs = { textA: '', textB: '', alphabet: 'auto', mode: 'global', scoring: defaults.scoring, seed: DEFAULT_SEED, shuffles: 200 };
   const history = new History<Inputs>(inputs);
-  let analysisA: AnalyzedSequence = analyzeSequenceText('', 'auto');
-  let analysisB: AnalyzedSequence = analyzeSequenceText('', 'auto');
+  let analysisA: AnalyzedSequence = emptyAnalysis();
+  let analysisB: AnalyzedSequence = emptyAnalysis();
   let lastKind: 'nucleotide' | 'protein' | null = null;
   let keepScoringOnce = false; // set when a project was just opened: its scoring must not be replaced by a preset
   let runId = 0;
-  let worker: Worker | null = null;
-  let dp: Dp | null = null;
+  let worker: JobWorker<AlignResult> | null = null;
+  let dp: DpView | null = null;
   let current: PairwiseAlignment | null = null;
   let runState: RunState = { status: 'empty', message: 'Enter or open two sequences to align.' };
 
@@ -160,7 +159,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   // ---- logic ----
   const commitHistory = debounce(() => history.push(inputs), 600);
   const schedule = (): void => { commitHistory(); run(); };
-  const run = debounce(() => execute(), 250);
+  const run = debounce(() => void execute(), 250);
 
   /** Shows the details panel for a cell (selected by the user or the stepper). */
   const showDetails = (cell: { i: number; j: number } | null, context: string | undefined): void => details.show(dp, cell, context);
@@ -198,7 +197,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     if (runState.status === 'empty') statusHost.append(callout('info', runState.message));
     else if (runState.status === 'running') statusHost.append(callout('info', 'Aligning…'));
     else if (runState.status === 'too-large') statusHost.append(callout('error', runState.message));
-    else if (runState.status === 'error') { statusHost.append(callout('error', runState.message)); const r = el('button', 'btn btn-small', 'Retry', { type: 'button' }); r.addEventListener('click', () => execute()); statusHost.append(r); }
+    else if (runState.status === 'error') { statusHost.append(callout('error', runState.message)); const r = el('button', 'btn btn-small', 'Retry', { type: 'button' }); r.addEventListener('click', () => void execute()); statusHost.append(r); }
   };
 
   /** Clears all result displays (used when inputs are not alignable). */
@@ -209,9 +208,12 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   };
 
   /** Validates inputs, picks scoring defaults when the alphabet kind changes, and runs the aligner in a worker. */
-  const execute = (): void => {
-    analysisA = analyzeSequenceText(inputs.textA, inputs.alphabet);
-    analysisB = analyzeSequenceText(inputs.textB, inputs.alphabet);
+  let executeSeq = 0;
+  const execute = async (): Promise<void> => {
+    const mine = ++executeSeq;
+    const [nextA, nextB] = await Promise.all([analyzeSequenceText(inputs.textA, inputs.alphabet), analyzeSequenceText(inputs.textB, inputs.alphabet)]);
+    if (mine !== executeSeq) return; // a newer run was requested while the text was being checked
+    analysisA = nextA; analysisB = nextB;
     inputA.showAnalysis(analysisA); inputB.showAnalysis(analysisB);
     const check = checkPair(analysisA, analysisB, inputs.alphabet);
     worker?.terminate(); worker = null;
@@ -228,40 +230,41 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     lastKind = kind;
     keepScoringOnce = false;
     scoringPanel.setState({ mode: inputs.mode, scoring: inputs.scoring }, check.alphabet);
-    let sc: CompiledScoring;
+    const runScoring = inputs.scoring;
     try {
-      sc = compileScoring(inputs.scoring, check.alphabet);
-      assertWithinCap(analysisA.residues.length, analysisB.residues.length, sc.affine);
+      await alignPrecheck(check.alphabet, runScoring, analysisA.residues.length, analysisB.residues.length);
     } catch (e) {
+      if (mine !== executeSeq) return;
       const code = (e as { code?: string }).code;
       runState = { status: code === 'too-large' ? 'too-large' : 'error', message: e instanceof Error ? e.message : 'Invalid settings.' };
       clearResults(); showStatus(); return;
     }
+    if (mine !== executeSeq) return; // the inputs changed while the settings were being checked
     const myRun = ++runId;
     runState = { status: 'running' }; showStatus();
     const a = analysisA.residues; const b = analysisB.residues;
-    worker = new Worker(new URL('../workers/pairwise.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (ev: MessageEvent<WorkerReply<AlignResult>>) => {
+    worker = createPairwiseWorker();
+    worker.onmessage = (ev: { data: WorkerReply<AlignResult> }) => {
       if (myRun !== runId) return;
       const m = ev.data;
       worker?.terminate(); worker = null;
       if (m.type === 'error') { runState = { status: m.code === 'too-large' ? 'too-large' : 'error', message: m.message }; clearResults(); showStatus(); return; }
       if (m.type !== 'result') return;
-      applyResult(a, b, check.alphabet, sc, m.value);
+      applyResult(a, b, check.alphabet, runScoring, m.value);
     };
     worker.onerror = (ev) => { if (myRun === runId) { runState = { status: 'error', message: `The alignment worker failed: ${ev.message}` }; clearResults(); showStatus(); } };
-    const req: AlignRequest = { type: 'align', a, b, alphabet: check.alphabet, mode: inputs.mode, scoring: inputs.scoring, enumerateCap: MAX_ENUMERATED_ALIGNMENTS };
+    const req: AlignRequest = { type: 'align', a, b, alphabet: check.alphabet, mode: inputs.mode, scoring: runScoring, enumerateCap: limits().maxEnumeratedAlignments };
     worker.postMessage(req);
   };
 
   /** Shows a finished alignment everywhere. */
-  const applyResult = (a: string, b: string, alphabet: Alphabet, sc: CompiledScoring, result: AlignResult): void => {
+  const applyResult = (a: string, b: string, alphabet: Alphabet, scoring: ScoringSpec, result: AlignResult): void => {
     runState = { status: 'done' }; showStatus();
-    dp = dpFromSnapshot(result.dp, a, b, sc);
+    dp = makeDpView(result.dp, a, b, alphabet, scoring);
     current = result.alignment;
-    const usesMatrix = sc.spec.substitution.kind === 'matrix';
-    renderStats(statsHost, { aln: current, stats: alignmentStats(current, sc), usesMatrix, lenA: a.length, lenB: b.length, scoringText: `${inputs.mode}; ${describeScoring(sc.spec)}` });
-    alnView.setData({ all: result.all, capped: result.capped, scoring: sc, alphabet, idA: analysisA.id || 'A', idB: analysisB.id || 'B' });
+    const usesMatrix = scoring.substitution.kind === 'matrix';
+    renderStats(statsHost, { aln: current, stats: result.stats, usesMatrix, lenA: a.length, lenB: b.length, scoringText: `${inputs.mode}; ${describeScoring(scoring)}` });
+    alnView.setData({ all: result.all, capped: result.capped, matchLines: result.matchLines, alphabet, idA: analysisA.id || 'A', idB: analysisB.id || 'B' });
     refreshPath();
     details.show(null, null);
     signif.setContext({ a, b, alphabet, mode: inputs.mode, scoring: inputs.scoring });
@@ -277,10 +280,10 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
   };
   function loadTexts(a: string, b: string): void {
     inputs = { ...inputs, textA: a, textB: b };
-    syncUi(); history.push(inputs); execute();
+    syncUi(); history.push(inputs); void execute();
   }
   alphaSel.addEventListener('change', () => { inputs = { ...inputs, alphabet: alphaSel.value as AlphabetChoice }; schedule(); }); // safe: the select only offers AlphabetChoice values
-  swapBtn.addEventListener('click', () => { inputs = { ...inputs, textA: inputs.textB, textB: inputs.textA }; syncUi(); history.push(inputs); execute(); });
+  swapBtn.addEventListener('click', () => { inputs = { ...inputs, textA: inputs.textB, textB: inputs.textA }; syncUi(); history.push(inputs); void execute(); });
   signif.onParamsChange(() => { const p = signif.getParams(); inputs = { ...inputs, seed: Number.isFinite(p.seed) ? Math.trunc(p.seed) : inputs.seed, shuffles: Number.isFinite(p.shuffles) ? Math.trunc(p.shuffles) : inputs.shuffles }; commitHistory(); });
 
   // ---- files, shortcuts ----
@@ -293,7 +296,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     else loadTexts(inputs.textA, r.text);
     toast(`Loaded ${r.name}.`);
   };
-  const restore = (s: Inputs | null): void => { if (s) { inputs = s; syncUi(); execute(); } };
+  const restore = (s: Inputs | null): void => { if (s) { inputs = s; syncUi(); void execute(); } };
 
   document.addEventListener('keydown', (e) => {
     if (root.hidden || !root.isConnected || isTextEntry(e.target)) return;
@@ -313,7 +316,7 @@ export function createAlignView(details: DetailsPanel = createDetailsPanel()): A
     loadTexts,
     getContext: () => ({ scoring: inputs.scoring, mode: inputs.mode }),
     getInputs: () => ({ ...inputs }),
-    setInputs(i) { inputs = { ...i }; keepScoringOnce = true; syncUi(); history.push(inputs); execute(); },
+    setInputs(i) { inputs = { ...i }; keepScoringOnce = true; syncUi(); history.push(inputs); void execute(); },
     handleAction(a: MenuAction): boolean {
       if (a === 'open-fasta') { void openFasta(); return true; }
       if (a === 'export') { openExport(); return true; }

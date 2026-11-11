@@ -1,14 +1,10 @@
-// Project files, text exports, cell inspection (details panel numbers), snapshots, and colour contrast.
-import fc from 'fast-check';
+// Project files, text exports, and colour contrast.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { alignmentToClustal, alignmentToFasta, matrixToCsv } from '../../src/io/export';
 import { parseProject, PROJECT_FORMAT_VERSION, serializeProject } from '../../src/io/project';
 import type { ProjectFile } from '../../src/io/project';
-import { cellInfo, dpFromSnapshot, dpToSnapshot, fillMatrix, tracebackFirst } from '../../src/bio/pairwise';
 import { contrastRatio, parseHex } from '../../src/ui/matrixGeometry';
-import { seqOf } from '../helpers/arb';
-import { affine, dna, linear, protein } from '../helpers/scoring';
 import type { PairwiseAlignment } from '../../src/shared/types';
 
 const project: ProjectFile = {
@@ -55,46 +51,6 @@ describe('exports', () => {
   it('matrix CSV has a header row and one row per residue of A plus the border', () => {
     const lines = matrixToCsv('AC', 'G', (i, j) => i * 10 + j).trim().split('\n');
     expect(lines).toEqual([',,G', ',0,1', 'A,10,11', 'C,20,21']);
-  });
-});
-
-describe('cellInfo (details-panel numbers) agrees with the fill', () => {
-  it('linear: the shown max equals the stored cell value, and the chosen moves match the candidates', () => {
-    fc.assert(fc.property(seqOf('ACGT', 12, 1), seqOf('ACGT', 12, 1), fc.constantFrom('global', 'local' as const), (a, b, mode) => {
-      const sc = dna(2, -3, linear(4));
-      const d = fillMatrix(a, b, mode, sc);
-      for (let i = 1; i < d.rows; i++) for (let j = 1; j < d.cols; j++) {
-        const info = cellInfo(d, i, j);
-        if (info.kind !== 'linear') throw new Error('expected linear');
-        const best = Math.max(info.diag, info.up, info.left);
-        expect(info.value).toBe(mode === 'local' ? Math.max(0, best) : best);
-        const cand = { diagonal: info.diag, up: info.up, left: info.left };
-        for (const c of info.chosen) expect(cand[c]).toBe(best);
-      }
-    }), { numRuns: 60 });
-  });
-  it('affine: M, X, Y values match the recurrences recomputed from neighbours', () => {
-    fc.assert(fc.property(seqOf('ACDEFG', 10, 1), seqOf('ACDEFG', 10, 1), fc.constantFrom('global', 'local' as const), (a, b, mode) => {
-      const sc = protein('BLOSUM62', affine(11, 1));
-      const d = fillMatrix(a, b, mode, sc);
-      for (let i = 1; i < d.rows; i++) for (let j = 1; j < d.cols; j++) {
-        const info = cellInfo(d, i, j);
-        if (info.kind !== 'affine') throw new Error('expected affine');
-        const pb = Math.max(info.M.fromM, info.M.fromX, info.M.fromY);
-        const floor = (v: number): number => Math.max(v, -1_000_000_000); // unreachable states are stored clamped at "minus infinity"
-        expect(info.M.value).toBe(floor((mode === 'local' ? Math.max(0, pb) : pb) + info.s));
-        expect(info.X.value).toBe(floor(Math.max(info.X.openFromM, info.X.extendX, info.X.openFromY)));
-        expect(info.Y.value).toBe(floor(Math.max(info.Y.openFromM, info.Y.openFromX, info.Y.extendY)));
-      }
-    }), { numRuns: 40 });
-  });
-  it('border cells explain themselves; snapshots round-trip through the worker format', () => {
-    const sc = dna(2, -3, affine(5, 2));
-    const d = fillMatrix('ACGT', 'AGT', 'global', sc);
-    expect(cellInfo(d, 0, 0).kind).toBe('border');
-    expect(cellInfo(d, 2, 0)).toMatchObject({ kind: 'border', value: -(5 + 2) });
-    const back = dpFromSnapshot(dpToSnapshot(d), 'ACGT', 'AGT', sc);
-    expect(tracebackFirst(back)).toEqual(tracebackFirst(d));
   });
 });
 
