@@ -20,9 +20,9 @@ Installers are published on the [Releases page](https://github.com/reeper316099/
 
 | OS | File |
 |---|---|
-| Windows | `SequenceScope_<version>_x64-setup.exe` or `SequenceScope_<version>_x64_en-US.msi` |
-| macOS | `SequenceScope_<version>_aarch64.dmg` (Apple Silicon; GitHub's macOS runner builds for its own CPU) |
-| Linux | `SequenceScope_<version>_amd64.AppImage` or `SequenceScope_<version>_amd64.deb` |
+| Windows | `SequenceScope_<version>_x64-setup.exe` or `SequenceScope_<version>_x64_en-US.msi` (64-bit Intel/AMD; "x64" is Windows' name for amd64) |
+| macOS | `SequenceScope_<version>_universal.dmg` (one app for Apple Silicon and Intel Macs) |
+| Linux | `SequenceScope_<version>_amd64.AppImage` or `SequenceScope_<version>_amd64.deb` (64-bit Intel/AMD; no ARM Linux or Windows-on-ARM build yet) |
 
 The app uses the web view your operating system already has (WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux). Windows 10 needs the WebView2 runtime (Windows 11 has it); Linux needs `libwebkit2gtk-4.1`.
 

@@ -16,7 +16,7 @@ Installers are built by GitHub Actions (Tauri) when you push a tag that starts w
 3. Open **github.com/reeper316099/SequenceScope → Actions → Release**. Three jobs build in parallel (Linux, Windows, macOS), then a fourth adds `SHA256SUMS.txt`.
 4. Installers appear on **github.com/reeper316099/SequenceScope/releases** under the tag:
    - Windows: `SequenceScope_<version>_x64-setup.exe` and `SequenceScope_<version>_x64_en-US.msi`
-   - macOS: `SequenceScope_<version>_aarch64.dmg` (built for the CPU of GitHub's macOS runner; an Intel build would need an extra matrix entry)
+   - macOS: `SequenceScope_<version>_universal.dmg` (one app containing Apple Silicon and Intel code; built with `--target universal-apple-darwin`)
    - Linux: `SequenceScope_<version>_amd64.AppImage` and `SequenceScope_<version>_amd64.deb`
    - `SHA256SUMS.txt` for all of them.
 
